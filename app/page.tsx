@@ -1,25 +1,9 @@
-import { FloatingChatWidget } from "@/components/floating-chat-widget"
+import { FloatingChatWidget } from "@/components/floating-chat-widget";
+
+const CLIENT_ID =
+  process.env.NEXT_PUBLIC_CLIENT_ID || "0b7e7dee87b1c3b98e72131173dfbbbf";
+const PLAYER_TOKEN = process.env.NEXT_PUBLIC_PLAYER_TOKEN || null;
 
 export default function Home() {
-  return (
-    <main className="min-h-screen bg-muted/30">
-      {/* Demo page content */}
-      <div className="max-w-2xl mx-auto p-8">
-        <h1 className="text-3xl font-bold text-foreground mb-4">
-          Welcome to Our Site
-        </h1>
-        <p className="text-muted-foreground mb-4">
-          This is a demo page to showcase the floating chat widget. Click the
-          chat button in the bottom-right corner to start a conversation.
-        </p>
-        <p className="text-muted-foreground">
-          The chat widget supports a pre-chat form to collect user information,
-          real-time messaging with auto-scroll, and smooth open/close animations.
-        </p>
-      </div>
-
-      {/* Floating Chat Widget */}
-      <FloatingChatWidget />
-    </main>
-  )
+  return <FloatingChatWidget clientId={CLIENT_ID} playerToken={PLAYER_TOKEN} />;
 }

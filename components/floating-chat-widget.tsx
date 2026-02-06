@@ -3,24 +3,38 @@
 import { useState, useCallback } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardFooter } from "@/components/ui/card";
 import { ChatHeader } from "./chat-header";
 import { PreChat } from "./pre-chat";
 import { ChatBody } from "./chat-body";
 import { ChatInput } from "./chat-input";
+import { ChatRating } from "./chat-rating";
 import { useChat } from "./use-chat";
 
-export function FloatingChatWidget() {
+interface FloatingChatWidgetProps {
+  clientId: string;
+  playerToken?: string | null;
+}
+
+export function FloatingChatWidget({
+  clientId,
+  playerToken,
+}: FloatingChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const {
     chatStarted,
-    userInfo,
     messages,
     isInputEnabled,
     isChatClosed,
+    ratingState,
+    hasToken,
     startChat,
+    autoStart,
     sendMessage,
-  } = useChat();
+    endChat,
+    submitRating,
+    resetChat,
+  } = useChat({ clientId, playerToken });
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -30,12 +44,20 @@ export function FloatingChatWidget() {
     setIsOpen(false);
   }, []);
 
+  const handleNewChat = useCallback(() => {
+    resetChat();
+  }, [resetChat]);
+
+  const handleSkipRating = useCallback(() => {
+    resetChat();
+  }, [resetChat]);
+
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4">
       {/* Chat Widget */}
       <div
         className={`
-          transform transition-all duration-300 ease-out origin-bottom-right
+          transform transition-all duration-300 ease-out origin-bottom-right relative
           ${
             isOpen
               ? "opacity-100 scale-100 translate-y-0"
@@ -43,23 +65,42 @@ export function FloatingChatWidget() {
           }
         `}
       >
-        <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl">
-          <ChatHeader title="Chat" onClose={handleClose} />
+        <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl gap-0 absolute right-4 bottom-0 z-99999">
+          <ChatHeader
+            title="Chat"
+            isChatActive={chatStarted && !isChatClosed}
+            onEndChat={endChat}
+            onClose={handleClose}
+          />
 
           {!chatStarted ? (
-            <PreChat onStartChat={startChat} />
+            <PreChat
+              onStartChat={startChat}
+              hasToken={hasToken}
+              onTokenStart={autoStart}
+            />
+          ) : isChatClosed ? (
+            <>
+              <ChatBody messages={messages} />
+              <ChatRating
+                ratingState={ratingState}
+                onSubmitRating={submitRating}
+                onSkip={handleSkipRating}
+                onNewChat={handleNewChat}
+              />
+            </>
           ) : (
             <>
-              <ChatBody messages={messages} userInfo={userInfo} />
+              <ChatBody messages={messages} />
               <ChatInput
                 onSendMessage={sendMessage}
-                disabled={!isInputEnabled || isChatClosed}
+                disabled={!isInputEnabled}
               />
-              <div className="flex justify-center items-center h-8 w-full">
-                Powered by Gamblio
-              </div>
             </>
           )}
+          <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full ">
+            Powered by Gamblio
+          </CardFooter>
         </Card>
       </div>
 
@@ -71,7 +112,6 @@ export function FloatingChatWidget() {
           h-14 w-14 rounded-full shadow-lg
           transition-transform duration-300 ease-out
           hover:scale-105 active:scale-95
-          ${isOpen ? "rotate-0" : "rotate-0"}
         `}
       >
         <MessageCircle className="h-6 w-6" />

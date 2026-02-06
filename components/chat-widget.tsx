@@ -252,7 +252,8 @@ export function ChatWidget() {
 
       const payload: StartChatPayload = {
         tag: "playerStartChatAndJoin",
-        playerToken: null,
+        playerToken:
+          "a45b2861951fb14b039feb1a260282b751632d977d1a677a0682fe3978f5fc4d939787215749c1872e3420fa2286fcc336bda6728e135ac35cd2c17ea437f54e",
         clientId: "0b7e7dee87b1c3b98e72131173dfbbbf",
         playerName: name,
         playerId: email,
@@ -303,7 +304,7 @@ export function ChatWidget() {
   );
 
   return (
-    <Card className="w-full max-w-[400px] h-[500px] flex flex-col overflow-hidden shadow-lg">
+    <Card className="w-full max-w-100 h-125 flex flex-col overflow-hidden shadow-lg">
       {!chatStarted ? (
         <PreChat onStartChat={handleStartChat} />
       ) : (

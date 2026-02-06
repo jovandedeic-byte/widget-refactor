@@ -10,15 +10,19 @@ import { MessageCircle } from "lucide-react";
 
 interface PreChatProps {
   onStartChat: (name: string, email: string) => void;
+  hasToken?: boolean;
+  onTokenStart?: () => void;
 }
 
-export function PreChat({ onStartChat }: PreChatProps) {
+export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChatProps) {
   const [name, setName] = useState("");
   const [id, setId] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
+    if (hasToken && onTokenStart) {
+      onTokenStart();
+    } else if (name.trim()) {
       onStartChat(name, id);
     }
   };
@@ -33,33 +37,39 @@ export function PreChat({ onStartChat }: PreChatProps) {
           Start a conversation
         </h2>
         <p className="text-sm text-muted-foreground text-center">
-          Enter your details below to begin chatting with us.
+          {hasToken
+            ? "Click below to start chatting with us."
+            : "Enter your details below to begin chatting with us."}
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="w-full space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">Name or Email</Label>
-          <Input
-            id="name"
-            type="text"
-            placeholder="Your name or you@example.com"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
+        {!hasToken && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="name">Name or Email</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your name or you@example.com"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="id">Id</Label>
-          <Input
-            id="id"
-            type="text"
-            placeholder="Your unique id"
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-          />
-        </div>
+            <div className="space-y-2">
+              <Label htmlFor="id">Id</Label>
+              <Input
+                id="id"
+                type="text"
+                placeholder="Your unique id"
+                value={id}
+                onChange={(e) => setId(e.target.value)}
+              />
+            </div>
+          </>
+        )}
 
         <Button type="submit" className="w-full">
           Start chat
