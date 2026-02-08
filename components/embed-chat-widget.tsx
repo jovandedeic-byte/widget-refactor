@@ -8,27 +8,36 @@ import { ChatBody } from "./chat-body";
 import { ChatInput } from "./chat-input";
 import { ChatRating } from "./chat-rating";
 import { useChat } from "./use-chat";
+import { LanguageContext, useTranslations, type Language } from "@/lib/i18n";
 
 interface EmbedChatWidgetProps {
   clientId: string;
   playerToken?: string | null;
+  language?: Language;
 }
 
-export function EmbedChatWidget({ clientId, playerToken }: EmbedChatWidgetProps) {
+export function EmbedChatWidget({
+  clientId,
+  playerToken,
+  language = "en",
+}: EmbedChatWidgetProps) {
   const {
     chatStarted,
     messages,
     isInputEnabled,
     isChatClosed,
+    isTyping,
     ratingState,
     hasToken,
     startChat,
     autoStart,
     sendMessage,
+    markMessagesAsRead,
     endChat,
     submitRating,
     resetChat,
-  } = useChat({ clientId, playerToken });
+  } = useChat({ clientId, playerToken, language });
+  const t = useTranslations();
 
   const handleNewChat = useCallback(() => {
     resetChat();
@@ -39,18 +48,23 @@ export function EmbedChatWidget({ clientId, playerToken }: EmbedChatWidgetProps)
   }, [resetChat]);
 
   return (
+    <LanguageContext.Provider value={language}>
     <Card className="w-full h-full flex flex-col overflow-hidden gap-0 rounded-none border-0">
       <ChatHeader
-        title="Chat"
+        title={t.chatTitle}
         isChatActive={chatStarted && !isChatClosed}
         onEndChat={endChat}
       />
 
       {!chatStarted ? (
-        <PreChat onStartChat={startChat} hasToken={hasToken} onTokenStart={autoStart} />
+        <PreChat
+          onStartChat={startChat}
+          hasToken={hasToken}
+          onTokenStart={autoStart}
+        />
       ) : isChatClosed ? (
         <>
-          <ChatBody messages={messages} />
+          <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
           <ChatRating
             ratingState={ratingState}
             onSubmitRating={submitRating}
@@ -60,16 +74,14 @@ export function EmbedChatWidget({ clientId, playerToken }: EmbedChatWidgetProps)
         </>
       ) : (
         <>
-          <ChatBody messages={messages} />
-          <ChatInput
-            onSendMessage={sendMessage}
-            disabled={!isInputEnabled}
-          />
+          <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
+          <ChatInput onSendMessage={sendMessage} disabled={!isInputEnabled} persistDraft={hasToken} />
         </>
       )}
       <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full">
-        Powered by Gamblio
+        {t.poweredBy}
       </CardFooter>
     </Card>
+    </LanguageContext.Provider>
   );
 }

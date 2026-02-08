@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardFooter } from "@/components/ui/card";
@@ -10,15 +10,20 @@ import { ChatBody } from "./chat-body";
 import { ChatInput } from "./chat-input";
 import { ChatRating } from "./chat-rating";
 import { useChat } from "./use-chat";
+import { LanguageContext, useTranslations, type Language } from "@/lib/i18n";
 
 interface FloatingChatWidgetProps {
   clientId: string;
   playerToken?: string | null;
+  theme?: string;
+  language?: Language;
 }
 
 export function FloatingChatWidget({
   clientId,
   playerToken,
+  theme,
+  language = "en",
 }: FloatingChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const {
@@ -26,15 +31,32 @@ export function FloatingChatWidget({
     messages,
     isInputEnabled,
     isChatClosed,
+    isTyping,
     ratingState,
     hasToken,
     startChat,
     autoStart,
     sendMessage,
+    markMessagesAsRead,
     endChat,
     submitRating,
     resetChat,
-  } = useChat({ clientId, playerToken });
+  } = useChat({ clientId, playerToken, language });
+  const t = useTranslations();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
 
   const handleToggle = useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -53,7 +75,13 @@ export function FloatingChatWidget({
   }, [resetChat]);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4">
+    <LanguageContext.Provider value={language}>
+    <div
+      ref={containerRef}
+      className={`fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4 ${
+        theme === "dark" ? "dark" : "light"
+      }`}
+    >
       {/* Chat Widget */}
       <div
         className={`
@@ -67,7 +95,7 @@ export function FloatingChatWidget({
       >
         <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl gap-0 absolute right-4 bottom-0 z-99999">
           <ChatHeader
-            title="Chat"
+            title={t.chatTitle}
             isChatActive={chatStarted && !isChatClosed}
             onEndChat={endChat}
             onClose={handleClose}
@@ -81,7 +109,7 @@ export function FloatingChatWidget({
             />
           ) : isChatClosed ? (
             <>
-              <ChatBody messages={messages} />
+              <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
               <ChatRating
                 ratingState={ratingState}
                 onSubmitRating={submitRating}
@@ -91,15 +119,16 @@ export function FloatingChatWidget({
             </>
           ) : (
             <>
-              <ChatBody messages={messages} />
+              <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
               <ChatInput
                 onSendMessage={sendMessage}
                 disabled={!isInputEnabled}
+                persistDraft={hasToken}
               />
             </>
           )}
           <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full ">
-            Powered by Gamblio
+            {t.poweredBy}
           </CardFooter>
         </Card>
       </div>
@@ -115,8 +144,9 @@ export function FloatingChatWidget({
         `}
       >
         <MessageCircle className="h-6 w-6" />
-        <span className="sr-only">{isOpen ? "Close chat" : "Open chat"}</span>
+        <span className="sr-only">{isOpen ? t.closeChat : t.openChat}</span>
       </Button>
     </div>
+    </LanguageContext.Provider>
   );
 }

@@ -5,18 +5,34 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Paperclip, Smile, Send, X } from "lucide-react";
-import EmojiPicker, { Theme, EmojiStyle, EmojiClickData } from "emoji-picker-react";
+import EmojiPicker, {
+  Theme,
+  EmojiStyle,
+  EmojiClickData,
+} from "emoji-picker-react";
+import { useTranslations } from "@/lib/i18n";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_CHARS = 600;
+const WARN_THRESHOLD = 580;
+const DRAFT_KEY = "gamblio_chat_draft";
 
 interface ChatInputProps {
   onSendMessage: (message: string, attachment?: string | null) => void;
   disabled?: boolean;
+  persistDraft?: boolean;
 }
 
-export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
-  const [message, setMessage] = useState("");
+export function ChatInput({ onSendMessage, disabled = false, persistDraft = false }: ChatInputProps) {
+  const t = useTranslations();
+  const [message, setMessage] = useState(() => {
+    if (persistDraft && typeof window !== "undefined") {
+      return localStorage.getItem(DRAFT_KEY) ?? "";
+    }
+    return "";
+  });
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -38,6 +54,27 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showEmojiPicker]);
 
+  // Debounced draft persistence
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!persistDraft) return;
+    draftTimerRef.current = setTimeout(() => {
+      if (message) {
+        localStorage.setItem(DRAFT_KEY, message);
+      } else {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    }, 500);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [message, persistDraft]);
+
+  // Update warning state when message changes
+  useEffect(() => {
+    setShowLimitWarning(message.length >= WARN_THRESHOLD);
+  }, [message]);
+
   // Cleanup preview blob URL
   useEffect(() => {
     return () => {
@@ -58,13 +95,13 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
       if (!file) return;
 
       if (!ALLOWED_TYPES.includes(file.type)) {
-        alert("Please select an image (JPEG, PNG, or WebP).");
+        alert(t.invalidFileType);
         e.target.value = "";
         return;
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        alert("File size must be less than 5 MB.");
+        alert(t.fileTooLarge);
         e.target.value = "";
         return;
       }
@@ -73,7 +110,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
       setSelectedFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     },
-    [previewUrl],
+    [previewUrl]
   );
 
   const handleSend = useCallback(() => {
@@ -96,7 +133,8 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
     }
 
     setMessage("");
-  }, [message, selectedFile, disabled, onSendMessage, removeFile]);
+    if (persistDraft) localStorage.removeItem(DRAFT_KEY);
+  }, [message, selectedFile, disabled, onSendMessage, removeFile, persistDraft]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,9 +149,21 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setMessage((prev) => prev + emojiData.emoji);
+    setMessage((prev) => {
+      const next = prev + emojiData.emoji;
+      return next.length > MAX_CHARS ? next.slice(0, MAX_CHARS) : next;
+    });
     setShowEmojiPicker(false);
     inputRef.current?.focus();
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value.length > MAX_CHARS) {
+      setMessage(value.slice(0, MAX_CHARS));
+    } else {
+      setMessage(value);
+    }
   };
 
   return (
@@ -127,7 +177,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
             onEmojiClick={handleEmojiClick}
             width={320}
             height={350}
-            searchPlaceholder="Search emoji..."
+            searchPlaceholder={t.searchEmoji}
             lazyLoadEmojis
             previewConfig={{ showPreview: false }}
           />
@@ -171,7 +221,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           variant="ghost"
           size="icon"
           className="shrink-0 text-muted-foreground hover:text-foreground"
-          aria-label="Attach file"
+          aria-label={t.attachFile}
           onClick={() => fileInputRef.current?.click()}
         >
           <Paperclip className="h-5 w-5" />
@@ -183,7 +233,7 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           variant="ghost"
           size="icon"
           className="shrink-0 text-muted-foreground hover:text-foreground"
-          aria-label="Add emoji"
+          aria-label={t.addEmoji}
           onClick={() => setShowEmojiPicker((prev) => !prev)}
         >
           <Smile className="h-5 w-5" />
@@ -192,9 +242,10 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Type a message..."
+          placeholder={t.typePlaceholder}
+          maxLength={MAX_CHARS}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           className="flex-1"
           disabled={disabled}
@@ -204,11 +255,18 @@ export function ChatInput({ onSendMessage, disabled = false }: ChatInputProps) {
           type="submit"
           size="icon"
           disabled={(!message.trim() && !selectedFile) || disabled}
-          aria-label="Send message"
+          aria-label={t.sendMessage}
+          className="cursor-pointer"
         >
           <Send className="h-4 w-4" />
         </Button>
       </form>
+
+      {showLimitWarning && (
+        <p className="text-xs text-destructive mt-1 px-1">
+          {t.messageLimit(message.length, MAX_CHARS)}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,36 +1,131 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gamblio Chat Widget
 
-## Getting Started
+A live chat widget built with Next.js for embedding on third-party sites. Supports **iframe + postMessage** integration and an optional **loader script** for secure handling of `clientId` and `playerToken`—credentials are never exposed in the URL.
 
-First, run the development server:
+## Overview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+The chat widget provides:
+
+- **Embed widget** – Full-page chat UI for iframe embedding
+- **Floating widget** – Chat button with popup (used on the main demo page)
+- **Secure config** – Sensitive credentials (`clientId`, `playerToken`) are passed via `postMessage`, never exposed in the URL
+
+## Integration Methods
+
+The embed page receives config via the `postMessage` API only—never via URL query params. This keeps `clientId` and `playerToken` out of the iframe `src`, browser history, referrers, and server logs.
+
+### 1. Iframe + postMessage (manual)
+
+Embed the iframe with **no credentials in the URL** and add a small script on the parent page to pass config via `postMessage`. Credentials stay in your page’s JavaScript context and never appear in the iframe `src`, history, or referrers.
+
+#### How it works
+
+1. The parent page creates an iframe pointing to `/embed` (no query params).
+2. The iframe loads and posts `gamblio-chat-ready` to the parent.
+3. The parent script receives that message and sends `gamblio-chat-init` with `clientId` and optional `playerToken`.
+4. The chat initializes inside the iframe.
+
+#### Example
+
+```html
+<!-- Create the iframe (no credentials in src) -->
+<iframe
+  id="gamblio-chat-iframe"
+  src="https://your-widget-domain.com/embed"
+  width="400"
+  height="600"
+  frameborder="0"
+></iframe>
+
+<script>
+  const iframe = document.getElementById("gamblio-chat-iframe");
+
+  window.addEventListener("message", function (event) {
+    // Verify event.origin in production!
+    if (event.data?.type === "gamblio-chat-ready") {
+      // Send config securely via postMessage
+      iframe.contentWindow.postMessage(
+        {
+          type: "gamblio-chat-init",
+          clientId: "YOUR_CLIENT_ID",
+          playerToken: "optional-player-token",
+        },
+        "https://your-widget-domain.com"
+      );
+    }
+  });
+</script>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Iframe + Loader Script
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+For a simpler integration, use a loader script that creates the iframe and handles the postMessage handshake. The host page only calls `GamblioChat.init()`—credentials are passed to the script at runtime and never appear in the DOM or URL.
 
-## Learn More
+```html
+<!-- Load the chat script -->
+<script src="https://your-widget-domain.com/chat-loader.js"></script>
 
-To learn more about Next.js, take a look at the following resources:
+<!-- Initialize with your credentials (fetch playerToken from your backend if needed) -->
+<script>
+  GamblioChat.init({
+    clientId: "YOUR_CLIENT_ID",
+    playerToken: "optional-player-token-for-authenticated-users",
+    container: "#chat-container",
+    width: "400px",
+    height: "600px",
+  });
+</script>
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+<div id="chat-container"></div>
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Secure token handling:** Load `playerToken` from your backend (e.g. via an authenticated API) and pass it directly to `GamblioChat.init()`. The token stays in memory and is only sent to the iframe via `postMessage`—never in the URL or static HTML.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Message protocol
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Direction       | Message                                                 | Description                                                            |
+| --------------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Iframe → Parent | `{ type: "gamblio-chat-ready" }`                        | Sent when iframe is ready to receive config                            |
+| Parent → Iframe | `{ type: "gamblio-chat-init", clientId, playerToken? }` | Initializes chat with `clientId` (required) and optional `playerToken` |
+
+#### Security checklist for production
+
+- Always validate `event.origin` in your `message` listener.
+- Always use `targetOrigin` (the second argument) in `postMessage` instead of `"*"`.
+- Store `playerToken` only in memory or secure backend; never hardcode it in static HTML.
+
+## Configuration
+
+| Prop / Config | Type   | Required | Description                                                                 |
+| ------------- | ------ | -------- | --------------------------------------------------------------------------- |
+| `clientId`    | string | Yes      | Your client/tenant identifier                                               |
+| `playerToken` | string | No       | For authenticated players; enables auto-start and resumes existing sessions |
+
+When `playerToken` is provided, the widget skips the pre-chat form and auto-starts the chat for that player.
+
+## Environment Variables
+
+| Variable                   | Description                               |
+| -------------------------- | ----------------------------------------- |
+| `NEXT_PUBLIC_CLIENT_ID`    | Default `clientId` for demo page          |
+| `NEXT_PUBLIC_PLAYER_TOKEN` | Default `playerToken` for demo page       |
+| `NEXT_PUBLIC_CHAT_WS_URL`  | WebSocket URL for the chat backend        |
+| `NEXT_PUBLIC_THEME`        | `"dark"` or `"light"` for floating widget |
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+- Main demo: [http://localhost:3000](http://localhost:3000)
+- Embed page: [http://localhost:3000/embed](http://localhost:3000/embed)
+
+## Deployment
+
+Deploy to Vercel or any Node.js host. Ensure CORS and frame embedding are configured for your widget domain if embedding on third-party sites.

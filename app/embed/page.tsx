@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { EmbedChatWidget } from "@/components/embed-chat-widget";
+import type { Language } from "@/lib/i18n";
 
 interface ChatConfig {
   clientId: string;
   playerToken?: string;
+  language?: Language;
 }
 
 export default function EmbedPage() {
@@ -18,6 +20,7 @@ export default function EmbedPage() {
         setConfig({
           clientId: data.clientId,
           playerToken: data.playerToken || null,
+          language: data.language === "me" ? "me" : "en",
         });
       }
     }
@@ -43,6 +46,7 @@ export default function EmbedPage() {
       <EmbedChatWidget
         clientId={config.clientId}
         playerToken={config.playerToken}
+        language={config.language}
       />
     </div>
   );

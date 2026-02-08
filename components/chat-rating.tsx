@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/lib/i18n";
 
 interface ChatRatingProps {
   ratingState: "none" | "pending" | "submitted";
@@ -18,6 +19,7 @@ export function ChatRating({
   onSkip,
   onNewChat,
 }: ChatRatingProps) {
+  const t = useTranslations();
   const [selectedRating, setSelectedRating] = useState(0);
   const [hoveredRating, setHoveredRating] = useState(0);
 
@@ -28,16 +30,21 @@ export function ChatRating({
       {ratingState === "submitted" ? (
         <>
           <p className="text-sm text-muted-foreground">
-            Thanks for your feedback!
+            {t.thanksFeedback}
           </p>
-          <Button onClick={onNewChat} variant="outline" size="sm">
-            Start new chat
+          <Button
+            onClick={onNewChat}
+            variant="outline"
+            size="sm"
+            className="cursor-pointer"
+          >
+            {t.startNewChat}
           </Button>
         </>
       ) : (
         <>
           <p className="text-sm font-medium text-foreground">
-            How was your experience?
+            {t.howWasExperience}
           </p>
           <div className="flex gap-1">
             {[1, 2, 3, 4, 5].map((value) => (
@@ -47,15 +54,15 @@ export function ChatRating({
                 onClick={() => setSelectedRating(value)}
                 onMouseEnter={() => setHoveredRating(value)}
                 onMouseLeave={() => setHoveredRating(0)}
-                className="p-1 transition-transform hover:scale-110"
-                aria-label={`Rate ${value} star${value > 1 ? "s" : ""}`}
+                className="p-1 transition-transform hover:scale-110 cursor-pointer"
+                aria-label={t.rateStars(value)}
               >
                 <Star
                   className={cn(
                     "h-6 w-6 transition-colors",
                     value <= (hoveredRating || selectedRating)
                       ? "fill-yellow-400 text-yellow-400"
-                      : "text-muted-foreground",
+                      : "text-muted-foreground"
                   )}
                 />
               </button>
@@ -68,11 +75,17 @@ export function ChatRating({
               }}
               size="sm"
               disabled={selectedRating === 0}
+              className="cursor-pointer"
             >
-              Submit
+              {t.submit}
             </Button>
-            <Button onClick={onSkip} variant="ghost" size="sm">
-              Skip
+            <Button
+              onClick={onSkip}
+              variant="ghost"
+              size="sm"
+              className="cursor-pointer"
+            >
+              {t.skip}
             </Button>
           </div>
         </>

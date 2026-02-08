@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MessageCircle } from "lucide-react";
+import { useTranslations } from "@/lib/i18n";
 
 interface PreChatProps {
   onStartChat: (name: string, email: string) => void;
@@ -14,7 +15,12 @@ interface PreChatProps {
   onTokenStart?: () => void;
 }
 
-export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChatProps) {
+export function PreChat({
+  onStartChat,
+  hasToken = false,
+  onTokenStart,
+}: PreChatProps) {
+  const t = useTranslations();
   const [name, setName] = useState("");
   const [id, setId] = useState("");
 
@@ -34,12 +40,12 @@ export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChat
           <MessageCircle className="w-6 h-6 text-primary" />
         </div>
         <h2 className="text-lg font-semibold text-foreground">
-          Start a conversation
+          {t.startConversation}
         </h2>
         <p className="text-sm text-muted-foreground text-center">
           {hasToken
-            ? "Click below to start chatting with us."
-            : "Enter your details below to begin chatting with us."}
+            ? t.clickBelowToStart
+            : t.enterDetailsToStart}
         </p>
       </div>
 
@@ -47,11 +53,11 @@ export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChat
         {!hasToken && (
           <>
             <div className="space-y-2">
-              <Label htmlFor="name">Name or Email</Label>
+              <Label htmlFor="name">{t.nameOrEmail}</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="Your name or you@example.com"
+                placeholder={t.nameOrEmailPlaceholder}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
@@ -59,11 +65,11 @@ export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChat
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="id">Id</Label>
+              <Label htmlFor="id">{t.idLabel}</Label>
               <Input
                 id="id"
                 type="text"
-                placeholder="Your unique id"
+                placeholder={t.idPlaceholder}
                 value={id}
                 onChange={(e) => setId(e.target.value)}
               />
@@ -71,8 +77,8 @@ export function PreChat({ onStartChat, hasToken = false, onTokenStart }: PreChat
           </>
         )}
 
-        <Button type="submit" className="w-full">
-          Start chat
+        <Button type="submit" className="w-full cursor-pointer">
+          {t.startChat}
         </Button>
       </form>
     </div>

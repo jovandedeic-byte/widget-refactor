@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { Message, UserInfo, PersistedSession } from "./types";
+import { getTranslations, type Language } from "@/lib/i18n";
 
 type StartChatPayload = {
   tag: "playerStartChatAndJoin";
@@ -48,6 +49,7 @@ type ServerMessage = {
   tag?: string;
   bump_type?: string;
   bump_data?: Record<string, unknown>;
+  timestamp?: number;
   error?: string;
 };
 
@@ -57,7 +59,9 @@ const SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 function saveSession(session: PersistedSession): void {
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch { /* SSR / quota */ }
+  } catch {
+    /* SSR / quota */
+  }
 }
 
 function loadSession(): PersistedSession | null {
@@ -71,19 +75,28 @@ function loadSession(): PersistedSession | null {
       return null;
     }
     return parsed;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function clearSession(): void {
-  try { localStorage.removeItem(SESSION_KEY); } catch {}
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
 }
 
 export interface UseChatOptions {
   clientId: string;
   playerToken?: string | null;
+  language?: Language;
 }
 
-export function useChat({ clientId, playerToken = null }: UseChatOptions) {
+export function useChat({
+  clientId,
+  playerToken = null,
+  language = "en",
+}: UseChatOptions) {
   const [chatStarted, setChatStarted] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -93,6 +106,8 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
     "none" | "pending" | "submitted"
   >("none");
 
+  const [isTyping, setIsTyping] = useState(false);
+
   const socketRef = useRef<WebSocket | null>(null);
   const chatIdRef = useRef<string | null>(null);
   const playerTokenRef = useRef<string | null>(playerToken);
@@ -101,6 +116,13 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
   const welcomeMessageShownRef = useRef(false);
   const autoStartedRef = useRef(false);
   const isResumingRef = useRef(false);
+  const isTypingRef = useRef(false);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingMessagesRef = useRef<Message[]>([]);
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  const t = useMemo(() => getTranslations(language), [language]);
 
   const hasToken = !!playerToken;
   const wsUrl = process.env.NEXT_PUBLIC_CHAT_WS_URL ?? "";
@@ -132,7 +154,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
             setUserInfo((prev) =>
               prev
                 ? { ...prev, name: backendName }
-                : { name: backendName, email: "" },
+                : { name: backendName, email: "" }
             );
           }
 
@@ -144,8 +166,8 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
                 id: crypto.randomUUID(),
                 role: "assistant" as const,
                 content: displayName
-                  ? `Hi ${displayName}! Thanks for reaching out. How can I help you today?`
-                  : "Hi! Thanks for reaching out. How can I help you today?",
+                  ? t.greetingWithName(displayName)
+                  : t.greetingNoName,
               },
             ]);
             welcomeMessageShownRef.current = true;
@@ -163,11 +185,9 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           break;
         }
         case "rejoinChatSuccess": {
-          const nextChatId = (
-            data.chat ??
-            data.chatId ??
-            chatIdRef.current
-          ) as string | null;
+          const nextChatId = (data.chat ?? data.chatId ?? chatIdRef.current) as
+            | string
+            | null;
           chatIdRef.current = nextChatId;
 
           // Capture updated token if backend returns one
@@ -197,8 +217,8 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           if (messageId) {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === messageId ? { ...msg, deliveredAt } : msg,
-              ),
+                msg.id === messageId ? { ...msg, deliveredAt } : msg
+              )
             );
           }
           break;
@@ -210,8 +230,8 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           if (messageId) {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === messageId ? { ...msg, seenBy } : msg,
-              ),
+                msg.id === messageId ? { ...msg, seenBy } : msg
+              )
             );
           }
           break;
@@ -225,12 +245,12 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
               if (!messageIdsStrings.includes(msg.id)) return msg;
               const seenBy = msg.seenBy ?? [];
               const hasCurrentSeen = seenBy.some(
-                (entry) => entry.seen_at === seenAt,
+                (entry) => entry.seen_at === seenAt
               );
               return hasCurrentSeen
                 ? msg
                 : { ...msg, seenBy: [...seenBy, { seen_at: seenAt }] };
-            }),
+            })
           );
           break;
         }
@@ -243,24 +263,81 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
             data.role === "system_ai_wasco" ||
             data.role === "system_ai_vector";
 
-          // Skip player's own messages — already added optimistically in sendMessage()
-          if (!isAgent) break;
+          // Player's message echo from backend: replace optimistic message with server version (server id + delivered_at)
+          if (!isAgent) {
+            const serverId = String(data.id ?? data.messageId ?? "");
+            const text = String(data.text ?? "");
+            const deliveredAt = (data.delivered_at ?? null) as number | null;
+            const seenBy = (data.seen_by ?? null) as Array<{
+              seen_at: number;
+            }> | null;
+            setMessages((prev) => {
+              // Match last undelivered user message with same content (most recent send)
+              let idx = -1;
+              for (let i = prev.length - 1; i >= 0; i--) {
+                const m = prev[i];
+                if (
+                  m.role === "user" &&
+                  m.deliveredAt == null &&
+                  m.content === text
+                ) {
+                  idx = i;
+                  break;
+                }
+              }
+              const serverMsg = {
+                id: serverId,
+                role: "user" as const,
+                content: text,
+                attachmentUrl: (data.attachment_url ?? null) as string | null,
+                unix: (Number(data.timestamp) ||
+                  Number(payload.timestamp) ||
+                  null) as number | null,
+                deliveredAt,
+                seenBy,
+              };
+              if (idx === -1) return [...prev, serverMsg];
+              return prev.map((m, i) => (i === idx ? serverMsg : m));
+            });
+            break;
+          }
 
           const id = String(data.id ?? data.messageId ?? crypto.randomUUID());
-          setMessages((prev) => [
-            ...prev,
-            {
-              id,
-              role: "assistant" as const,
-              content: String(data.text ?? ""),
-              attachmentUrl: (data.attachment_url ?? null) as string | null,
-              unix: (Number(data.timestamp) || null) as number | null,
-              deliveredAt: (data.delivered_at ?? null) as number | null,
-              seenBy: (data.seen_by ?? null) as Array<{
-                seen_at: number;
-              }> | null,
-            },
-          ]);
+          const agentMsg: Message = {
+            id,
+            role: "assistant" as const,
+            content: String(data.text ?? ""),
+            attachmentUrl: (data.attachment_url ?? null) as string | null,
+            unix: (Number(data.timestamp) ||
+              Number(payload.timestamp) ||
+              null) as number | null,
+            deliveredAt: (data.delivered_at ?? null) as number | null,
+            seenBy: (data.seen_by ?? null) as Array<{
+              seen_at: number;
+            }> | null,
+          };
+
+          // Queue behind typing indicator
+          if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
+            typingTimerRef.current = null;
+          }
+          pendingMessagesRef.current.push(agentMsg);
+
+          if (!isTypingRef.current) {
+            isTypingRef.current = true;
+            setIsTyping(true);
+          }
+
+          // Show queued messages 1s after the last one arrives
+          if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+          messageTimerRef.current = setTimeout(() => {
+            const pending = pendingMessagesRef.current;
+            pendingMessagesRef.current = [];
+            isTypingRef.current = false;
+            setIsTyping(false);
+            setMessages((prev) => [...prev, ...pending]);
+          }, 1000);
           break;
         }
         case "switchedStatusToClosed":
@@ -301,8 +378,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
               {
                 id: crypto.randomUUID(),
                 role: "assistant" as const,
-                content:
-                  "Authentication failed. Please refresh and try again.",
+                content: t.authFailed,
               },
             ]);
             setIsInputEnabled(false);
@@ -312,16 +388,15 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
         default:
       }
     },
-    [],
+    [t]
   );
 
   const handleExistingMessages = useCallback(
-    (payload: { messages?: Array<Record<string, unknown>>; chat_id?: string }) => {
+    (payload: {
+      messages?: Array<Record<string, unknown>>;
+      chat_id?: string;
+    }) => {
       const incoming = Array.isArray(payload.messages) ? payload.messages : [];
-      console.log("[useChat] existingMessages count:", incoming.length);
-      if (incoming.length > 0) {
-        console.log("[useChat] first message sample:", incoming[0]);
-      }
 
       if (payload.chat_id) {
         chatIdRef.current = payload.chat_id;
@@ -333,7 +408,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
             msg &&
             msg.role !== "system_event" &&
             msg.role !== "system_chat_rating" &&
-            msg.is_sent_safely !== true,
+            msg.is_sent_safely !== true
         )
         .map((msg) => {
           const role = String(msg.role ?? "");
@@ -352,15 +427,13 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           };
         });
 
-      console.log("[useChat] parsed messages count:", parsed.length);
-
       if (parsed.length > 0) {
         // Replace messages entirely with server history, skip welcome message
         welcomeMessageShownRef.current = true;
         setMessages(parsed);
       }
     },
-    [],
+    []
   );
 
   const connectSocket = useCallback(
@@ -376,15 +449,12 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
       socketRef.current = socket;
 
       socket.onopen = () => {
-        console.log("[useChat] socket opened, sending:", payload);
         socket.send(JSON.stringify(payload));
       };
 
       socket.onmessage = (event) => {
-        console.log("[useChat] raw message:", event.data);
         try {
           const data = JSON.parse(event.data);
-          console.log("[useChat] parsed:", data);
 
           if (data.tag === "bump" && data.bump_type) {
             handleBump(data as ServerMessage, startName ?? "");
@@ -396,8 +466,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
         }
       };
 
-      socket.onclose = (event) => {
-        console.log("[useChat] socket closed:", event.code, event.reason);
+      socket.onclose = () => {
         setIsInputEnabled(false);
         // If socket closes during resume attempt, session is stale — reset
         if (isResumingRef.current) {
@@ -411,12 +480,11 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
         }
       };
 
-      socket.onerror = (event) => {
-        console.error("[useChat] socket error:", event);
+      socket.onerror = () => {
         setIsInputEnabled(false);
       };
     },
-    [handleBump, handleExistingMessages, wsUrl],
+    [handleBump, handleExistingMessages, wsUrl]
   );
 
   const startChat = useCallback(
@@ -433,8 +501,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           {
             id: crypto.randomUUID(),
             role: "assistant" as const,
-            content:
-              "Chat backend is not configured. Set NEXT_PUBLIC_CHAT_WS_URL to connect.",
+            content: t.backendNotConfigured,
           },
         ]);
         return;
@@ -454,7 +521,7 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
 
       connectSocket(payload, name);
     },
-    [connectSocket, wsUrl, clientId],
+    [connectSocket, wsUrl, clientId, t]
   );
 
   const autoStart = useCallback(() => {
@@ -506,16 +573,43 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
           {
             id: crypto.randomUUID(),
             role: "assistant" as const,
-            content: "Message not sent. Connection is unavailable.",
+            content: t.connectionUnavailable,
           },
         ]);
         return;
       }
 
       socket.send(JSON.stringify(payload));
+
+      // Show typing dots after 1.5s (cleared when agent message arrives)
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => {
+        isTypingRef.current = true;
+        setIsTyping(true);
+      }, 1500);
     },
-    [isInputEnabled],
+    [isInputEnabled, t]
   );
+
+  const markMessagesAsRead = useCallback((ids: string[]) => {
+    const unseen = ids.filter((id) => !seenIdsRef.current.has(id));
+    if (unseen.length === 0) return;
+
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !chatIdRef.current)
+      return;
+
+    unseen.forEach((id) => seenIdsRef.current.add(id));
+    const numericIds = unseen.map(Number).filter((n) => !isNaN(n));
+    if (numericIds.length === 0) return;
+    socket.send(
+      JSON.stringify({
+        tag: "playerMarkMessagesAsRead",
+        chatId: chatIdRef.current,
+        messageIds: numericIds,
+      })
+    );
+  }, []);
 
   const endChat = useCallback(() => {
     const socket = socketRef.current;
@@ -547,60 +641,63 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
     });
   }, [clientId]);
 
-  const submitRating = useCallback((rating: number) => {
-    if (!chatIdRef.current) return;
+  const submitRating = useCallback(
+    (rating: number) => {
+      if (!chatIdRef.current) return;
 
-    const ratingPayload: RatingPayload = {
-      tag: "playerNewChatRating",
-      chatId: chatIdRef.current,
-      clientId: clientId,
-      rating,
-      playerId: playerIdRef.current,
-    };
-
-    if (playerTokenRef.current) {
-      ratingPayload.playerToken = playerTokenRef.current;
-    }
-
-    const socket = socketRef.current;
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify(ratingPayload));
-      setRatingState("submitted");
-      saveSession({
-        chatId: chatIdRef.current!,
-        playerToken: playerTokenRef.current,
-        playerName: playerNameRef.current,
+      const ratingPayload: RatingPayload = {
+        tag: "playerNewChatRating",
+        chatId: chatIdRef.current,
+        clientId: clientId,
+        rating,
         playerId: playerIdRef.current,
-        status: "closed",
-        hasSubmittedRating: true,
-        timestamp: Date.now(),
-      });
-      return;
-    }
+      };
 
-    // No open socket (e.g. page was refreshed) — open one to send the rating
-    if (!wsUrl) return;
-    const tempSocket = new WebSocket(wsUrl);
+      if (playerTokenRef.current) {
+        ratingPayload.playerToken = playerTokenRef.current;
+      }
 
-    tempSocket.onopen = () => {
-      tempSocket.send(JSON.stringify(ratingPayload));
-      setRatingState("submitted");
-      saveSession({
-        chatId: chatIdRef.current!,
-        playerToken: playerTokenRef.current,
-        playerName: playerNameRef.current,
-        playerId: playerIdRef.current,
-        status: "closed",
-        hasSubmittedRating: true,
-        timestamp: Date.now(),
-      });
-      tempSocket.close();
-    };
+      const socket = socketRef.current;
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(ratingPayload));
+        setRatingState("submitted");
+        saveSession({
+          chatId: chatIdRef.current!,
+          playerToken: playerTokenRef.current,
+          playerName: playerNameRef.current,
+          playerId: playerIdRef.current,
+          status: "closed",
+          hasSubmittedRating: true,
+          timestamp: Date.now(),
+        });
+        return;
+      }
 
-    tempSocket.onerror = () => {
-      tempSocket.close();
-    };
-  }, [clientId, wsUrl]);
+      // No open socket (e.g. page was refreshed) — open one to send the rating
+      if (!wsUrl) return;
+      const tempSocket = new WebSocket(wsUrl);
+
+      tempSocket.onopen = () => {
+        tempSocket.send(JSON.stringify(ratingPayload));
+        setRatingState("submitted");
+        saveSession({
+          chatId: chatIdRef.current!,
+          playerToken: playerTokenRef.current,
+          playerName: playerNameRef.current,
+          playerId: playerIdRef.current,
+          status: "closed",
+          hasSubmittedRating: true,
+          timestamp: Date.now(),
+        });
+        tempSocket.close();
+      };
+
+      tempSocket.onerror = () => {
+        tempSocket.close();
+      };
+    },
+    [clientId, wsUrl]
+  );
 
   const resetChat = useCallback(() => {
     clearSession();
@@ -608,11 +705,17 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
     playerTokenRef.current = playerToken;
     welcomeMessageShownRef.current = false;
     autoStartedRef.current = false;
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    pendingMessagesRef.current = [];
+    seenIdsRef.current.clear();
+    isTypingRef.current = false;
     setChatStarted(false);
     setMessages([]);
     setIsInputEnabled(false);
     setIsChatClosed(false);
     setRatingState("none");
+    setIsTyping(false);
     setUserInfo(null);
 
     if (socketRef.current) {
@@ -636,13 +739,36 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
         playerTokenRef.current = session.playerToken;
       }
 
+      // Restore userInfo so avatar/name survives refresh
+      if (session.playerName) {
+        setUserInfo((prev) =>
+          prev
+            ? { ...prev, name: session.playerName! }
+            : { name: session.playerName!, email: "" }
+        );
+      }
+
+      // Show welcome message while waiting for server history
+      const displayName = session.playerName || "";
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          role: "assistant" as const,
+          content: displayName
+            ? t.greetingWithName(displayName)
+            : t.greetingNoName,
+        },
+      ]);
+
       // Set UI state immediately
       setChatStarted(true);
       setIsInputEnabled(false); // enabled by rejoinChatSuccess
       setIsChatClosed(session.status === "closed");
       setRatingState(
         session.status === "closed"
-          ? session.hasSubmittedRating ? "submitted" : "pending"
+          ? session.hasSubmittedRating
+            ? "submitted"
+            : "pending"
           : "none"
       );
 
@@ -662,11 +788,25 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
       };
       connectSocket(payload);
     },
-    [clientId, playerToken, connectSocket],
+    [clientId, playerToken, connectSocket, t]
   );
 
-  const hasRestoredRef = useRef(false);
+  // Clean up WebSocket on unmount — prevents Strict Mode double-mount
+  // from leaving an orphaned socket whose onclose handler clears the session.
+  useEffect(() => {
+    return () => {
+      isResumingRef.current = false;
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    };
+  }, []);
 
+  // Restore session on mount (synchronous localStorage read — no waiting)
+  const hasRestoredRef = useRef(false);
   useEffect(() => {
     if (hasRestoredRef.current) return;
     hasRestoredRef.current = true;
@@ -674,9 +814,53 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
     const session = loadSession();
     if (!session) return;
 
-    console.log("[useChat] Restoring session:", session.chatId, "status:", session.status);
     resumeChat(session);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cross-tab sync: the `storage` event fires in OTHER tabs when localStorage changes.
+  // When tab A saves/clears the session, tabs B/C/… receive the event and sync their UI.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== SESSION_KEY) return;
+
+      // Session was cleared in another tab → reset this tab
+      if (!event.newValue) {
+        if (chatIdRef.current) {
+          resetChat();
+        }
+        return;
+      }
+
+      try {
+        const session = JSON.parse(event.newValue) as PersistedSession;
+        if (!session.chatId) return;
+        if (Date.now() - session.timestamp > SESSION_MAX_AGE_MS) return;
+
+        // Same chat — sync state changes (closed, rating)
+        if (session.chatId === chatIdRef.current) {
+          if (session.status === "closed") {
+            setIsChatClosed(true);
+            setIsInputEnabled(false);
+            setRatingState(
+              session.hasSubmittedRating ? "submitted" : "pending"
+            );
+          }
+          if (session.hasSubmittedRating) {
+            setRatingState("submitted");
+          }
+          return;
+        }
+
+        // Different chat or no current chat — resume it
+        resumeChat(session);
+      } catch {
+        // ignore parse errors
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [resetChat, resumeChat]);
 
   return {
     chatStarted,
@@ -684,11 +868,13 @@ export function useChat({ clientId, playerToken = null }: UseChatOptions) {
     messages,
     isInputEnabled,
     isChatClosed,
+    isTyping,
     ratingState,
     hasToken,
     startChat,
     autoStart,
     sendMessage,
+    markMessagesAsRead,
     endChat,
     submitRating,
     resetChat,
