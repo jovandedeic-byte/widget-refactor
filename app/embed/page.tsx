@@ -6,7 +6,7 @@ import type { Language } from "@/lib/i18n";
 
 const BUTTON_SIZE = 80;
 const OPEN_WIDTH = 500;
-const OPEN_HEIGHT = 680;
+const OPEN_HEIGHT = 800;
 
 interface ChatConfig {
   clientId: string;
