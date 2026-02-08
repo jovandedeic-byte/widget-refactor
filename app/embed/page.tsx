@@ -1,22 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { EmbedChatWidget } from "@/components/embed-chat-widget";
+import { useState, useEffect, useCallback } from "react";
+import { FloatingChatWidget } from "@/components/floating-chat-widget";
 import type { Language } from "@/lib/i18n";
+
+const BUTTON_SIZE = 64;
+const OPEN_WIDTH = 420;
+const OPEN_HEIGHT = 680;
 
 interface ChatConfig {
   clientId: string;
-  playerToken?: string;
+  playerToken?: string | null;
   language?: Language;
+}
+
+function notifyParentSize(width: number, height: number) {
+  window.parent.postMessage(
+    { type: "gamblio-chat-resize", width, height },
+    "*"
+  );
 }
 
 export default function EmbedPage() {
   const [config, setConfig] = useState<ChatConfig | null>(null);
 
   useEffect(() => {
+    let initialized = false;
+
     function handleMessage(event: MessageEvent) {
       const data = event.data;
       if (data?.type === "gamblio-chat-init" && data.clientId) {
+        initialized = true;
         setConfig({
           clientId: data.clientId,
           playerToken: data.playerToken || null,
@@ -27,27 +41,40 @@ export default function EmbedPage() {
 
     window.addEventListener("message", handleMessage);
 
-    // Signal to parent that iframe is ready to receive config
     window.parent.postMessage({ type: "gamblio-chat-ready" }, "*");
+    const interval = setInterval(() => {
+      if (!initialized) {
+        window.parent.postMessage({ type: "gamblio-chat-ready" }, "*");
+      } else {
+        clearInterval(interval);
+      }
+    }, 500);
 
-    return () => window.removeEventListener("message", handleMessage);
+    notifyParentSize(BUTTON_SIZE, BUTTON_SIZE);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      clearInterval(interval);
+    };
   }, []);
 
-  if (!config) {
-    return (
-      <div className="flex items-center justify-center h-screen text-sm text-muted-foreground">
-        Initializing...
-      </div>
-    );
-  }
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    if (isOpen) {
+      notifyParentSize(OPEN_WIDTH, OPEN_HEIGHT);
+    } else {
+      notifyParentSize(BUTTON_SIZE, BUTTON_SIZE);
+    }
+  }, []);
+
+  if (!config) return null;
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
-      <EmbedChatWidget
-        clientId={config.clientId}
-        playerToken={config.playerToken}
-        language={config.language}
-      />
-    </div>
+    <FloatingChatWidget
+      clientId={config.clientId}
+      playerToken={config.playerToken}
+      theme="dark"
+      language={config.language}
+      onOpenChange={handleOpenChange}
+    />
   );
 }

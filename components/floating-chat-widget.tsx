@@ -17,6 +17,7 @@ interface FloatingChatWidgetProps {
   playerToken?: string | null;
   theme?: string;
   language?: Language;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export function FloatingChatWidget({
@@ -24,6 +25,7 @@ export function FloatingChatWidget({
   playerToken,
   theme,
   language = "en",
+  onOpenChange,
 }: FloatingChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const {
@@ -52,19 +54,24 @@ export function FloatingChatWidget({
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        onOpenChange?.(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, onOpenChange]);
 
   const handleToggle = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
+    setIsOpen((prev) => {
+      onOpenChange?.(!prev);
+      return !prev;
+    });
+  }, [onOpenChange]);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
-  }, []);
+    onOpenChange?.(false);
+  }, [onOpenChange]);
 
   const handleNewChat = useCallback(() => {
     resetChat();
