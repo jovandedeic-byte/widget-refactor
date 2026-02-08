@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
 import type { Language } from "@/lib/i18n";
 
-const BUTTON_SIZE = 64;
-const OPEN_WIDTH = 420;
+const BUTTON_SIZE = 80;
+const OPEN_WIDTH = 500;
 const OPEN_HEIGHT = 680;
 
 interface ChatConfig {
