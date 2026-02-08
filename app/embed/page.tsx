@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
 import type { Language } from "@/lib/i18n";
 
@@ -58,11 +58,22 @@ export default function EmbedPage() {
     };
   }, []);
 
+  const closeTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
   const handleOpenChange = useCallback((isOpen: boolean) => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+
     if (isOpen) {
+      // Expand instantly so the widget animation has room
       notifyParentSize(OPEN_WIDTH, OPEN_HEIGHT);
     } else {
-      notifyParentSize(BUTTON_SIZE, BUTTON_SIZE);
+      // Wait for the 300ms close animation to finish, then shrink
+      closeTimer.current = setTimeout(() => {
+        notifyParentSize(BUTTON_SIZE, BUTTON_SIZE);
+      }, 300);
     }
   }, []);
 
