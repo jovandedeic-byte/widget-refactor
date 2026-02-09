@@ -121,6 +121,7 @@ export function GameCard({ game, index }: GameCardProps) {
             className="object-cover"
             sizes="(max-width: 640px) 260px, (max-width: 768px) 280px, 300px"
             priority={index < 3}
+            unoptimized
           />
 
           {/* Rich dark gradient overlay */}

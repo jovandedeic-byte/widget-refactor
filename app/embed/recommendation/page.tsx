@@ -51,10 +51,13 @@ export default function RecommendationEmbedPage() {
   if (!config) return null;
 
   return (
-    <RecommendationWidget
-      clientId={config.clientId}
-      playerToken={config.playerToken}
-      settings={config.recommendationSettings}
-    />
+    <div className="w-full h-full">
+
+      <RecommendationWidget
+        clientId={config.clientId}
+        playerToken={config.playerToken}
+        settings={config.recommendationSettings}
+      />
+    </div>
   );
 }
