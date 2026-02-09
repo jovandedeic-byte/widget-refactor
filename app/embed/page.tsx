@@ -12,6 +12,7 @@ interface ChatConfig {
   clientId: string;
   playerToken?: string | null;
   language?: Language;
+  theme?: "light" | "dark";
 }
 
 function notifyParentSize(width: number, height: number) {
@@ -35,6 +36,7 @@ export default function EmbedPage() {
           clientId: data.clientId,
           playerToken: data.playerToken || null,
           language: data.language === "me" ? "me" : "en",
+          theme: data.theme === "light" ? "light" : "dark",
         });
       }
     }
@@ -83,7 +85,7 @@ export default function EmbedPage() {
     <FloatingChatWidget
       clientId={config.clientId}
       playerToken={config.playerToken}
-      theme="dark"
+      theme={config.theme}
       language={config.language}
       onOpenChange={handleOpenChange}
     />
