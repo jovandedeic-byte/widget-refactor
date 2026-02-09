@@ -1,4 +1,5 @@
 import { FloatingChatWidget } from "@/components/floating-chat-widget";
+import { RecommendationWidget } from "@/components/recommendation-widget";
 import type { Language } from "@/lib/i18n";
 
 const CLIENT_ID =
@@ -9,11 +10,19 @@ const LANGUAGE = (process.env.NEXT_PUBLIC_LANGUAGE || "en") as Language;
 
 export default function Home() {
   return (
+    <>
+    <RecommendationWidget
+      clientId={CLIENT_ID}
+      playerToken={PLAYER_TOKEN}
+      // theme={THEME}
+      // language={LANGUAGE}
+    />
     <FloatingChatWidget
       clientId={CLIENT_ID}
       playerToken={PLAYER_TOKEN}
       theme={THEME}
       language={LANGUAGE}
     />
+    </>
   );
 }

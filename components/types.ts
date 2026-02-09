@@ -22,3 +22,42 @@ export interface PersistedSession {
   hasSubmittedRating: boolean;
   timestamp: number;
 }
+export interface Game {
+  id: string;
+  title: string;
+  genre?: string | null;
+  cover: string;
+  accentColor: string;
+  tag?: "HOT" | "NEW" | "POPULAR" | "JACKPOT";
+}
+
+// Recommendation widget (customization via postMessage)
+export interface RecommendationSettings {
+  displayMode?: "stack" | "carousel";
+  backgroundType?: "image" | "video" | "gradient" | "transparent";
+  imageIndex?: number;
+  imageExtension?: "jpg" | "png" | "svg";
+  videoIndex?: number;
+  gradientDirection?: string;
+  gradientColors?: [string, string];
+  withHeadline?: boolean;
+  headlineTitle?: string;
+  headlineSubtitle?: string;
+}
+
+export interface RecommendationWidgetProps {
+  clientId: string;
+  playerToken?: string | null;
+  settings?: RecommendationSettings;
+}
+
+// API response game type (from recommendation backend)
+export interface ApiGame {
+  id?: string | number;
+  gameId?: string | number;
+  gameName?: string;
+  name?: string;
+  gameImage?: string;
+  logo?: string;
+  [key: string]: unknown;
+}
