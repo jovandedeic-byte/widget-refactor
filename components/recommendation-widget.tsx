@@ -24,7 +24,7 @@ export function RecommendationWidget({
     isLoading,
     error,
     trackClick,
-  } = useRecommendation({ clientId, playerToken });
+  } = useRecommendation({ clientId, playerToken, containerRef: scrollRef });
 
   const checkScroll = () => {
     if (!scrollRef.current) return;
@@ -47,14 +47,18 @@ export function RecommendationWidget({
     setTimeout(checkScroll, 350);
   };
 
-  const handleGameClick = (game: Game) => {
+  const handlePlay = (game: Game) => {
+    trackClick(game.id);
+  };
+
+  const handleDemo = (game: Game) => {
     trackClick(game.id);
   };
 
   if (isLoading) {
     return (
-      <section className="relative w-full py-12" aria-label="Loading recommendations">
-        <div className="flex items-center justify-center">
+      <section className="relative w-full h-full min-h-[200px]" aria-label="Loading recommendations">
+        <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </section>
@@ -63,8 +67,8 @@ export function RecommendationWidget({
 
   if (error) {
     return (
-      <section className="relative w-full py-12" aria-label="Error">
-        <div className="flex items-center justify-center text-muted-foreground">
+      <section className="relative w-full h-full min-h-[200px]" aria-label="Error">
+        <div className="flex items-center justify-center h-full text-muted-foreground">
           {error}
         </div>
       </section>
@@ -80,7 +84,7 @@ export function RecommendationWidget({
   const showHeadline = settings.withHeadline !== false;
 
   return (
-    <section className="relative w-full" aria-label="Game recommendations">
+    <section className="relative w-full h-full flex flex-col" aria-label="Game recommendations">
       {showHeadline && (
         <div className="flex items-end justify-between mb-8 px-6 md:px-12 lg:px-16">
           <div>
@@ -127,32 +131,36 @@ export function RecommendationWidget({
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative flex-1 flex flex-col justify-center pl-10">
+        {/* Left fade - only show when scrolled right */}
         <div
-          className="absolute left-0 top-0 bottom-0 w-12 md:w-16 z-10 pointer-events-none transition-opacity duration-300"
+          className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
           style={{
-            background:
-              "linear-gradient(to right, hsl(240, 15%, 3%), transparent)",
+            background: "linear-gradient(to right, hsl(240, 15%, 3%), transparent)",
             opacity: canScrollLeft ? 1 : 0,
+            transition: "opacity 0.3s ease",
           }}
         />
+        {/* Right fade - only show when can scroll right */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-12 md:w-16 z-10 pointer-events-none transition-opacity duration-300"
+          className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
           style={{
-            background:
-              "linear-gradient(to left, hsl(240, 15%, 3%), transparent)",
+            background: "linear-gradient(to left, hsl(240, 15%, 3%), transparent)",
             opacity: canScrollRight ? 1 : 0,
+            transition: "opacity 0.3s ease",
           }}
         />
 
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory px-6 md:px-12 lg:px-16 py-8 "
+          className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-8"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
             WebkitOverflowScrolling: "touch",
+            paddingLeft: "40px",
+            paddingRight: "24px",
           }}
           role="list"
           aria-label="Game cards"
@@ -163,9 +171,15 @@ export function RecommendationWidget({
               className="snap-start"
               role="listitem"
               data-game-id={game.id}
-              onClick={() => handleGameClick(game)}
             >
-              <GameCard game={game} index={i} />
+              <GameCard
+                game={game}
+                index={i}
+                gameUrl={settings.gameUrl}
+                demoUrl={settings.demoUrl}
+                onPlay={handlePlay}
+                onDemo={handleDemo}
+              />
             </div>
           ))}
         </div>

@@ -27,7 +27,12 @@ type BumpPayload = {
   bump_data?: Record<string, unknown>;
 };
 
-export function ChatWidget() {
+interface ChatWidgetProps {
+  clientId?: string | null;
+  playerToken?: string | null;
+}
+
+export function ChatWidget({ clientId = "", playerToken = null }: ChatWidgetProps = {}) {
   const [chatStarted, setChatStarted] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -252,9 +257,8 @@ export function ChatWidget() {
 
       const payload: StartChatPayload = {
         tag: "playerStartChatAndJoin",
-        playerToken:
-          "a45b2861951fb14b039feb1a260282b751632d977d1a677a0682fe3978f5fc4d939787215749c1872e3420fa2286fcc336bda6728e135ac35cd2c17ea437f54e",
-        clientId: "0b7e7dee87b1c3b98e72131173dfbbbf",
+        playerToken: playerToken ?? "",
+        clientId: clientId ?? "",
         playerName: name,
         playerId: email,
       };

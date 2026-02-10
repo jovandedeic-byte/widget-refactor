@@ -121,6 +121,7 @@ export function useChat({
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingMessagesRef = useRef<Message[]>([]);
   const seenIdsRef = useRef<Set<string>>(new Set());
+  const hasUserMessagesRef = useRef(false);
 
   const t = useMemo(() => getTranslations(language), [language]);
 
@@ -342,19 +343,36 @@ export function useChat({
         }
         case "switchedStatusToClosed":
         case "chatClosedBySystemAlready": {
-          setIsChatClosed(true);
-          setIsInputEnabled(false);
-          setRatingState("pending");
-
-          saveSession({
-            chatId: chatIdRef.current!,
-            playerToken: playerTokenRef.current,
-            playerName: playerNameRef.current,
-            playerId: playerIdRef.current,
-            status: "closed",
-            hasSubmittedRating: false,
-            timestamp: Date.now(),
-          });
+          // Only show rating if user sent at least one message
+          if (hasUserMessagesRef.current) {
+            setIsChatClosed(true);
+            setIsInputEnabled(false);
+            setRatingState("pending");
+            saveSession({
+              chatId: chatIdRef.current!,
+              playerToken: playerTokenRef.current,
+              playerName: playerNameRef.current,
+              playerId: playerIdRef.current,
+              status: "closed",
+              hasSubmittedRating: false,
+              timestamp: Date.now(),
+            });
+          } else {
+            // No messages sent - reset chat so user can start fresh
+            clearSession();
+            chatIdRef.current = null;
+            welcomeMessageShownRef.current = false;
+            hasUserMessagesRef.current = false;
+            setChatStarted(false);
+            setMessages([]);
+            setIsInputEnabled(false);
+            setIsChatClosed(false);
+            setRatingState("none");
+            if (socketRef.current) {
+              socketRef.current.close();
+              socketRef.current = null;
+            }
+          }
           break;
         }
         case "chatRatingSuccess": {
@@ -430,6 +448,8 @@ export function useChat({
       if (parsed.length > 0) {
         // Replace messages entirely with server history, skip welcome message
         welcomeMessageShownRef.current = true;
+        // Check if there are user messages in history
+        hasUserMessagesRef.current = parsed.some((msg) => msg.role === "user");
         setMessages(parsed);
       }
     },
@@ -548,6 +568,8 @@ export function useChat({
     (content: string, attachment?: string | null) => {
       if (!isInputEnabled) return;
 
+      hasUserMessagesRef.current = true;
+
       setMessages((prev) => [
         ...prev,
         {
@@ -626,19 +648,37 @@ export function useChat({
     };
 
     socket.send(JSON.stringify(payload));
-    setIsChatClosed(true);
-    setIsInputEnabled(false);
-    setRatingState("pending");
 
-    saveSession({
-      chatId: chatIdRef.current!,
-      playerToken: playerTokenRef.current,
-      playerName: playerNameRef.current,
-      playerId: playerIdRef.current,
-      status: "closed",
-      hasSubmittedRating: false,
-      timestamp: Date.now(),
-    });
+    // Only show rating if user sent at least one message
+    if (hasUserMessagesRef.current) {
+      setIsChatClosed(true);
+      setIsInputEnabled(false);
+      setRatingState("pending");
+      saveSession({
+        chatId: chatIdRef.current!,
+        playerToken: playerTokenRef.current,
+        playerName: playerNameRef.current,
+        playerId: playerIdRef.current,
+        status: "closed",
+        hasSubmittedRating: false,
+        timestamp: Date.now(),
+      });
+    } else {
+      // No messages sent - reset chat so user can start fresh
+      clearSession();
+      chatIdRef.current = null;
+      welcomeMessageShownRef.current = false;
+      hasUserMessagesRef.current = false;
+      setChatStarted(false);
+      setMessages([]);
+      setIsInputEnabled(false);
+      setIsChatClosed(false);
+      setRatingState("none");
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+    }
   }, [clientId]);
 
   const submitRating = useCallback(
@@ -705,6 +745,7 @@ export function useChat({
     playerTokenRef.current = playerToken;
     welcomeMessageShownRef.current = false;
     autoStartedRef.current = false;
+    hasUserMessagesRef.current = false;
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
     pendingMessagesRef.current = [];

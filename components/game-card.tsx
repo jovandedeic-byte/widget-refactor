@@ -10,6 +10,10 @@ import { Game } from "./types";
 interface GameCardProps {
   game: Game;
   index: number;
+  gameUrl?: string;
+  demoUrl?: string;
+  onPlay?: (game: Game) => void;
+  onDemo?: (game: Game) => void;
 }
 
 const tagConfig: Record<
@@ -42,9 +46,32 @@ const tagConfig: Record<
   },
 };
 
-export function GameCard({ game, index }: GameCardProps) {
+export function GameCard({ game, index, gameUrl, demoUrl, onPlay, onDemo }: GameCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const tag = game.tag ? tagConfig[game.tag] : null;
+
+  const resolveUrl = (pattern: string | undefined) => {
+    if (!pattern) return undefined;
+    return pattern.replace("{gameId}", game.id);
+  };
+
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onPlay?.(game);
+    const url = resolveUrl(gameUrl);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const handleDemo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDemo?.(game);
+    const url = resolveUrl(demoUrl);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
 
   return (
     <motion.article
@@ -69,8 +96,8 @@ export function GameCard({ game, index }: GameCardProps) {
         transition={{ type: "spring", stiffness: 280, damping: 22 }}
         style={{
           boxShadow: isHovered
-            ? `0 24px 60px -10px rgba(218, 165, 32, 0.25), 0 0 50px -15px rgba(218, 165, 32, 0.15), 0 0 0 1px rgba(218, 165, 32, 0.2)`
-            : "0 8px 30px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(218, 165, 32, 0.06)",
+            ? `0 8px 24px -4px rgba(218, 165, 32, 0.2), 0 0 0 1px rgba(218, 165, 32, 0.2)`
+            : "0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(218, 165, 32, 0.06)",
         }}
       >
         {/* Card gold border frame */}
@@ -195,6 +222,7 @@ export function GameCard({ game, index }: GameCardProps) {
                         "0 4px 20px rgba(218, 165, 32, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
                     }}
                     aria-label={`Play ${game.title}`}
+                    onClick={handlePlay}
                   >
                     <Play className="h-3.5 w-3.5" />
                     Play
@@ -216,6 +244,7 @@ export function GameCard({ game, index }: GameCardProps) {
                       color: "rgb(218, 185, 100)",
                     }}
                     aria-label={`Try ${game.title} demo`}
+                    onClick={handleDemo}
                   >
                     <Monitor className="h-3.5 w-3.5" />
                     Demo

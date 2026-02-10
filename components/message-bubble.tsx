@@ -41,50 +41,73 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     message.role === "user" &&
     Array.isArray(message.seenBy) &&
     message.seenBy.length > 0;
-
+  const timestamp = message.unix
+    ? new Date(message.unix * 1000).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+    : null;
   // data-message-id on agent messages lets IntersectionObserver detect visibility for read receipts
   return (
     <div
-      {...(message.role === "assistant" && message.unix ? { "data-message-id": message.id } : {})}
       className={cn(
-        "flex ",
-        message.role === "user"
-          ? "justify-end flex-col items-end"
-          : "justify-start items-end gap-2"
+        "flex items-end gap-2",
+        message.role === "user" ? "justify-end" : "justify-start"
       )}
     >
       {message.role !== "user" && (
-        <Avatar>
+        <Avatar className="shrink-0">
           <AvatarImage src="https://app.gamblio.ai/wasco.png" alt={t.wascoAlt} />
           <AvatarFallback>W</AvatarFallback>
         </Avatar>
       )}
 
       <div
+        {...(message.role === "assistant" && message.unix ? { "data-message-id": message.id } : {})}
         className={cn(
-          "max-w-[80%] rounded-2xl text-sm",
-          hasAttachment ? "p-1.5" : "px-4 py-2.5",
-          message.role === "user"
-            ? "bg-primary text-primary-foreground rounded-br-md"
-            : "bg-gray-200 dark:bg-muted text-foreground rounded-bl-md"
+          "flex items-end gap-1.5",
+          message.role === "user" ? "flex-row-reverse" : "flex-row"
         )}
       >
-        {hasAttachment && (
-          <img
-            src={message.attachmentUrl!}
-            alt={t.attachmentAlt}
-            className="rounded-xl max-w-full max-h-48 object-contain"
-          />
-        )}
-        {(!hasAttachment || !isImageContent) && message.content && (
-          <p className={hasAttachment ? "px-2.5 py-1.5" : ""}>
-            {renderContent(message.content)}
-          </p>
+        <div
+          className={cn(
+            "max-w-[80%] rounded-2xl text-sm",
+            hasAttachment ? "p-1.5" : "px-4 py-2.5",
+            message.role === "user"
+              ? "bg-primary text-primary-foreground rounded-br-md"
+              : "bg-gray-200 dark:bg-muted text-foreground rounded-bl-md"
+          )}
+        >
+          {hasAttachment && (
+            <img
+              src={message.attachmentUrl!}
+              alt={t.attachmentAlt}
+              className="rounded-xl max-w-full max-h-48 object-contain"
+            />
+          )}
+          {(!hasAttachment || !isImageContent) && message.content && (
+            <p className={hasAttachment ? "px-2.5 py-1.5" : ""}>
+              {renderContent(message.content)}
+            </p>
+          )}
+        </div>
+
+        {timestamp && (
+          <span className="text-[11px] text-muted-foreground/80 whitespace-nowrap pb-1">
+            {timestamp}
+          </span>
         )}
       </div>
-      {isDelivered && !isRead && <Check className="h-4 w-4 text-gray-500" />}
-      {isRead && isDelivered && (
-        <CheckCheck className="h-4 w-4 text-green-500" />
+
+      {message.role === "user" && (
+        <>
+          {isDelivered && !isRead && <Check className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          {isRead && isDelivered && (
+            <CheckCheck className="h-4 w-4 shrink-0 text-green-500" />
+          )}
+        </>
       )}
     </div>
   );

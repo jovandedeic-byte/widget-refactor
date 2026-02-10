@@ -43,6 +43,10 @@ export interface RecommendationSettings {
   withHeadline?: boolean;
   headlineTitle?: string;
   headlineSubtitle?: string;
+  // Game URL patterns - use {gameId} as placeholder
+  // e.g., "https://casino.com/games/{gameId}" or "https://casino.com/play/{gameId}"
+  gameUrl?: string;
+  demoUrl?: string;
 }
 
 export interface RecommendationWidgetProps {
