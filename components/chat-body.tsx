@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useRef, useCallback, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -38,15 +38,7 @@ function getDateLabel (
   });
 }
 
-function DateSeparator ({ label }: { label: string }) {
-  return (
-    <div className="sticky top-0 z-10 flex justify-center py-2 -mt-2 first:pt-0 ">
-      <span className="text-xs font-medium text-muted-foreground bg-muted/90 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50">
-        {label}
-      </span>
-    </div>
-  );
-}
+const FLOATING_PILL_HIDE_MS = 2000;
 
 function TypingDots () {
   const t = useTranslations();
@@ -67,35 +59,35 @@ function TypingDots () {
   );
 }
 
-type ListItem =
-  | { type: "date"; label: string }
-  | { type: "message"; message: Message };
+type DateGroup = { label: string; messages: Message[] };
 
-function buildListWithDateSeparators (
+function buildDateGroups (
   messages: Message[],
   t: { dateToday: string; dateYesterday: string }
-): ListItem[] {
+): DateGroup[] {
   const now = new Date();
   const todayKey = getDayKey(Math.floor(now.getTime() / 1000));
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayKey = getDayKey(Math.floor(yesterday.getTime() / 1000));
-  const items: ListItem[] = [];
-  let lastKey: string | null = null;
+  const groups: DateGroup[] = [];
+  let current: DateGroup | null = null;
 
   for (const message of messages) {
     const unix = message.unix ?? 0;
     const key = unix ? getDayKey(unix) : null;
-    if (key !== null && key !== lastKey) {
-      items.push({
-        type: "date",
-        label: getDateLabel(unix, todayKey, yesterdayKey, t),
-      });
-      lastKey = key;
+    const label = key ? getDateLabel(unix, todayKey, yesterdayKey, t) : "";
+    if (key !== null && (!current || current.label !== label)) {
+      current = { label, messages: [] };
+      groups.push(current);
     }
-    items.push({ type: "message", message });
+    if (!current) {
+      current = { label: "", messages: [] };
+      groups.push(current);
+    }
+    current.messages.push(message);
   }
-  return items;
+  return groups;
 }
 
 export function ChatBody ({ messages, isTyping = false, onMarkAsRead }: ChatBodyProps) {
@@ -103,11 +95,58 @@ export function ChatBody ({ messages, isTyping = false, onMarkAsRead }: ChatBody
   const viewportRef = useRef<HTMLDivElement>(null);
   const batchRef = useRef<string[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [floatingDate, setFloatingDate] = useState<string | null>(null);
+  const [pillVisible, setPillVisible] = useState(false);
+  const hidePillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const listItems = useMemo(
-    () => buildListWithDateSeparators(messages, { dateToday: t.dateToday, dateYesterday: t.dateToday }),
-    [messages, t]
+  const dateGroups = useMemo(
+    () => buildDateGroups(messages, { dateToday: t.dateToday, dateYesterday: t.dateToday }),
+    [messages, t.dateToday]
   );
+
+  // Floating date pill: show on scroll, hide after 2s of no scroll; only one pill, no stacking
+  const updateFloatingDate = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const { scrollTop, clientHeight, scrollHeight } = viewport;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 8;
+    if (atBottom) {
+      setPillVisible(false);
+      if (hidePillTimerRef.current) {
+        clearTimeout(hidePillTimerRef.current);
+        hidePillTimerRef.current = null;
+      }
+      return;
+    }
+    const markers = viewport.querySelectorAll<HTMLElement>("[data-date-marker]");
+    let currentLabel: string | null = null;
+    for (const m of markers) {
+      const top = m.offsetTop;
+      if (top <= scrollTop + 60) currentLabel = m.dataset.dateLabel ?? null;
+    }
+    if (currentLabel) {
+      setFloatingDate(currentLabel);
+      setPillVisible(true);
+      if (hidePillTimerRef.current) clearTimeout(hidePillTimerRef.current);
+      hidePillTimerRef.current = setTimeout(() => {
+        setPillVisible(false);
+        hidePillTimerRef.current = null;
+      }, FLOATING_PILL_HIDE_MS);
+    }
+  }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    viewport.addEventListener("scroll", updateFloatingDate, { passive: true });
+    return () => {
+      viewport.removeEventListener("scroll", updateFloatingDate);
+      if (hidePillTimerRef.current) {
+        clearTimeout(hidePillTimerRef.current);
+        hidePillTimerRef.current = null;
+      }
+    };
+  }, [updateFloatingDate]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -159,25 +198,48 @@ export function ChatBody ({ messages, isTyping = false, onMarkAsRead }: ChatBody
 
   return (
     <ScrollArea ref={viewportRef} className="flex-1">
-      <div className="p-4 space-y-4">
-        {messages.length === 0 && !isTyping ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <p className="text-sm text-muted-foreground">
-              {t.noMessages}
-            </p>
+      <div className="relative">
+        {/* Single floating date pill: shows on scroll, auto-hides after 2s */}
+        {floatingDate && (
+          <div
+            className={`absolute top-0 left-0 right-0 z-10 flex justify-center py-2 pointer-events-none transition-opacity duration-300 ${pillVisible ? "opacity-100" : "opacity-0"}`}
+            aria-hidden
+          >
+            <span className="text-xs font-medium text-muted-foreground bg-muted/90 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50">
+              {floatingDate}
+            </span>
           </div>
-        ) : (
-          <>
-            {listItems.map((item) =>
-              item.type === "date" ? (
-                <DateSeparator key={`date-${item.label}`} label={item.label} />
-              ) : (
-                <MessageBubble key={item.message.id} message={item.message} />
-              )
-            )}
-            {isTyping && <TypingDots />}
-          </>
         )}
+        <div className="p-4">
+          {messages.length === 0 && !isTyping ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <p className="text-sm text-muted-foreground">
+                {t.noMessages}
+              </p>
+            </div>
+          ) : (
+            <>
+              {dateGroups.map((group, i) => (
+                <div key={group.label || `g-${i}`} className={i > 0 ? "mt-4" : undefined}>
+                  {group.label ? (
+                    <div
+                      data-date-marker
+                      data-date-label={group.label}
+                      className="h-0 overflow-hidden"
+                      aria-hidden
+                    />
+                  ) : null}
+                  <div className="space-y-4">
+                    {group.messages.map((m) => (
+                      <MessageBubble key={m.id} message={m} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {isTyping && <TypingDots />}
+            </>
+          )}
+        </div>
       </div>
     </ScrollArea>
   );
