@@ -8,7 +8,7 @@ import type { Language } from "@/lib/i18n";
 const THEME = process.env.NEXT_PUBLIC_THEME || "dark";
 const LANGUAGE = (process.env.NEXT_PUBLIC_LANGUAGE || "en") as Language;
 
-export default function Home() {
+export default function Home () {
   return (
     <>
       <RecommendationWidget clientId="" playerToken={null} />

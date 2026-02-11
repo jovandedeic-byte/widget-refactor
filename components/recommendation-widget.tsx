@@ -10,7 +10,7 @@ import { useRecommendation } from "./use-recommendation";
 
 export type { RecommendationSettings, RecommendationWidgetProps } from "@/components/types";
 
-export function RecommendationWidget({
+export function RecommendationWidget ({
   clientId,
   playerToken,
   settings = {},
@@ -87,7 +87,7 @@ export function RecommendationWidget({
     <section className="relative w-full h-full flex flex-col" aria-label="Game recommendations">
       {showHeadline && (
         <div className="flex items-end justify-between mb-8 px-6 md:px-12 lg:px-16">
-          <div>
+          {/* <div>
             <motion.p
               className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-2"
               initial={{ opacity: 0, y: 10 }}
@@ -104,7 +104,7 @@ export function RecommendationWidget({
             >
               {headlineSubtitle}
             </motion.h2>
-          </div>
+          </div> */}
 
           <div className="hidden md:flex items-center gap-2">
             <Button

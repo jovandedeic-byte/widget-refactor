@@ -40,6 +40,7 @@ export interface Translations {
   connectionUnavailable: string;
   attachmentAlt: string;
   wascoAlt: string;
+  dateToday: string;
 }
 
 const en: Translations = {
@@ -80,6 +81,7 @@ const en: Translations = {
   connectionUnavailable: "Message not sent. Connection is unavailable.",
   attachmentAlt: "Attachment",
   wascoAlt: "@wasco",
+  dateToday: "Today",
 };
 
 const me: Translations = {
@@ -95,8 +97,7 @@ const me: Translations = {
   attachFile: "Prikaci fajl",
   addEmoji: "Dodaj emoji",
   sendMessage: "Posalji poruku",
-  messageLimit: (current, max) =>
-    `Ogranicenje: ${current}/${max} karaktera`,
+  messageLimit: (current, max) => `Ogranicenje: ${current}/${max} karaktera`,
   thanksFeedback: "Hvala na povratnoj informaciji!",
   startNewChat: "Zapocni novi razgovor",
   howWasExperience: "Kako ste zadovoljni uslugom?",
@@ -118,10 +119,12 @@ const me: Translations = {
     "Zdravo! Hvala sto ste nas kontaktirali. Kako vam mozemo pomoci?",
   authFailed:
     "Autentifikacija neuspjesna. Osvjezite stranicu i pokusajte ponovo.",
-  backendNotConfigured: "Chat server nije konfigurisan. Postavite NEXT_PUBLIC_CHAT_WS_URL za konekciju.",
+  backendNotConfigured:
+    "Chat server nije konfigurisan. Postavite NEXT_PUBLIC_CHAT_WS_URL za konekciju.",
   connectionUnavailable: "Poruka nije poslata. Konekcija nije dostupna.",
   attachmentAlt: "Prilog",
   wascoAlt: "@wasco",
+  dateToday: "Danas",
 };
 
 export function getTranslations(lang: Language): Translations {

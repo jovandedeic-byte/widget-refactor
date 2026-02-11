@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageBubble } from "./message-bubble";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
@@ -13,7 +13,42 @@ interface ChatBodyProps {
   onMarkAsRead?: (ids: string[]) => void;
 }
 
-function TypingDots() {
+function getDayKey (unix: number): string {
+  const d = new Date(unix * 1000);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function getDateLabel (
+  unix: number,
+  todayKey: string,
+  yesterdayKey: string,
+  t: { dateToday: string; dateYesterday: string }
+): string {
+  const key = getDayKey(unix);
+  if (key === todayKey) return t.dateToday;
+  if (key === yesterdayKey) return t.dateYesterday;
+  const d = new Date(unix * 1000);
+  return d.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function DateSeparator ({ label }: { label: string }) {
+  return (
+    <div className="sticky top-0 z-10 flex justify-center py-2 -mt-2 first:pt-0 bg-linear-to-b from-background via-background/95 to-transparent">
+      <span className="text-xs font-medium text-muted-foreground bg-muted/90 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function TypingDots () {
   const t = useTranslations();
   return (
     <div className="flex justify-start items-end gap-2">
@@ -32,11 +67,47 @@ function TypingDots() {
   );
 }
 
-export function ChatBody({ messages, isTyping = false, onMarkAsRead }: ChatBodyProps) {
+type ListItem =
+  | { type: "date"; label: string }
+  | { type: "message"; message: Message };
+
+function buildListWithDateSeparators (
+  messages: Message[],
+  t: { dateToday: string; dateYesterday: string }
+): ListItem[] {
+  const now = new Date();
+  const todayKey = getDayKey(Math.floor(now.getTime() / 1000));
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = getDayKey(Math.floor(yesterday.getTime() / 1000));
+  const items: ListItem[] = [];
+  let lastKey: string | null = null;
+
+  for (const message of messages) {
+    const unix = message.unix ?? 0;
+    const key = unix ? getDayKey(unix) : null;
+    if (key !== null && key !== lastKey) {
+      items.push({
+        type: "date",
+        label: getDateLabel(unix, todayKey, yesterdayKey, t),
+      });
+      lastKey = key;
+    }
+    items.push({ type: "message", message });
+  }
+  return items;
+}
+
+export function ChatBody ({ messages, isTyping = false, onMarkAsRead }: ChatBodyProps) {
   const t = useTranslations();
   const viewportRef = useRef<HTMLDivElement>(null);
   const batchRef = useRef<string[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const listItems = useMemo(
+    () => buildListWithDateSeparators(messages, { dateToday: t.dateToday, dateYesterday: t.dateToday }),
+    [messages, t]
+  );
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -97,9 +168,13 @@ export function ChatBody({ messages, isTyping = false, onMarkAsRead }: ChatBodyP
           </div>
         ) : (
           <>
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
+            {listItems.map((item) =>
+              item.type === "date" ? (
+                <DateSeparator key={`date-${item.label}`} label={item.label} />
+              ) : (
+                <MessageBubble key={item.message.id} message={item.message} />
+              )
+            )}
             {isTyping && <TypingDots />}
           </>
         )}
