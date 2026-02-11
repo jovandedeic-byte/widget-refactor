@@ -40,7 +40,7 @@ function getDateLabel (
 
 function DateSeparator ({ label }: { label: string }) {
   return (
-    <div className="sticky top-0 z-10 flex justify-center py-2 -mt-2 first:pt-0 bg-linear-to-b from-background via-background/95 to-transparent">
+    <div className="sticky top-0 z-10 flex justify-center py-2 -mt-2 first:pt-0 ">
       <span className="text-xs font-medium text-muted-foreground bg-muted/90 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50">
         {label}
       </span>
