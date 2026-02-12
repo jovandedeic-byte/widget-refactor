@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef, RefObject } from "react";
 import type { Game, ApiGame } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://core.gamblio.ai";
-console.log("[Recommendation] API_URL:", API_URL);
 
 // Test function - call from console: window.testImpression()
 if (typeof window !== "undefined") {
@@ -141,7 +140,7 @@ export function useRecommendation({
 
       console.log("[Impression] Fetch initiated");
     },
-    [clientId, playerToken],
+    [clientId, playerToken]
   );
 
   const trackClick = useCallback(
@@ -171,7 +170,7 @@ export function useRecommendation({
 
       console.log("[Click] Fetch initiated");
     },
-    [clientId, playerToken],
+    [clientId, playerToken]
   );
 
   // Intersection observer for impression tracking
@@ -198,7 +197,7 @@ export function useRecommendation({
       {
         threshold: 0.5,
         root: null, // viewport
-      },
+      }
     );
 
     observerRef.current = observer;

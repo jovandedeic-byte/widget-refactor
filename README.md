@@ -109,12 +109,20 @@ When `playerToken` is provided, the widget skips the pre-chat form and auto-star
 
 ## Environment Variables
 
-| Variable                   | Description                               |
-| -------------------------- | ----------------------------------------- |
-| `NEXT_PUBLIC_CLIENT_ID`    | Default `clientId` for demo page          |
-| `NEXT_PUBLIC_PLAYER_TOKEN` | Default `playerToken` for demo page       |
-| `NEXT_PUBLIC_CHAT_WS_URL`  | WebSocket URL for the chat backend        |
-| `NEXT_PUBLIC_THEME`        | `"dark"` or `"light"` for floating widget |
+| Variable                               | Description                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CLIENT_ID`                | Default `clientId` for demo page                                           |
+| `NEXT_PUBLIC_PLAYER_TOKEN`             | Default `playerToken` for demo page                                         |
+| `NEXT_PUBLIC_CHAT_WS_URL`              | WebSocket URL for the chat backend                                          |
+| `NEXT_PUBLIC_THEME`                    | `"dark"` or `"light"` for floating widget                                   |
+| `NEXT_PUBLIC_API_URL`                  | Base API URL (e.g. `https://core.gamblio.ai/api/`) for recommendation and hot/cold widgets |
+| `NEXT_PUBLIC_USE_DUMMY_RECOMMENDATIONS`| Set to `true` to use dummy recommendation data when API is unavailable       |
+| `NEXT_PUBLIC_USE_DUMMY_HOT_COLD`       | Set to `true` to use dummy hot/cold games when get-vendors API is unavailable |
+
+### Hot/Cold widget
+
+- **Pass settings from parent**: Send `gamblio-hotcold-init` with `hotColdSettings`. The embed page merges defaults with your payload, e.g. `{ backgroundType: "vortex", ...data.hotColdSettings }`, so you can override `backgroundType`, `gameUrl`, etc.
+- **Real API and original images**: Set `NEXT_PUBLIC_USE_DUMMY_HOT_COLD=false` in `.env` so the widget calls the get-vendors API. If you still see old data, clear localStorage for keys starting with `gamblio-hotcold-`. Add the host that serves your game images (e.g. your API CDN) to `next.config.ts` → `images.remotePatterns` so Next.js can load them.
 
 ## Development
 

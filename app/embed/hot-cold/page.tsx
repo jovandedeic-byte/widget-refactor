@@ -22,10 +22,14 @@ export default function HotColdEmbedPage() {
       const data = event.data;
       if (data?.type === "gamblio-hotcold-init" && data.clientId) {
         initialized = true;
+        // Merge defaults with parent-provided settings (parent overrides)
         setConfig({
           clientId: data.clientId,
           playerToken: data.playerToken || null,
-          hotColdSettings: data.hotColdSettings || {},
+          hotColdSettings: {
+            backgroundType: "vortex",
+            ...data.hotColdSettings,
+          },
         });
       }
     }
@@ -51,10 +55,12 @@ export default function HotColdEmbedPage() {
   if (!config) return null;
 
   return (
-    <HotColdWidget
-      clientId={config.clientId}
-      playerToken={config.playerToken}
-      settings={config.hotColdSettings}
-    />
+    <main className="w-full h-full min-h-screen p-4 md:p-6">
+      <HotColdWidget
+        clientId={config.clientId}
+        playerToken={config.playerToken}
+        settings={config.hotColdSettings}
+      />
+    </main>
   );
 }

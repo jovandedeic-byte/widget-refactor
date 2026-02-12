@@ -8,9 +8,12 @@ import { GameCard } from "@/components/game-card";
 import type { Game, RecommendationWidgetProps } from "@/components/types";
 import { useRecommendation } from "./use-recommendation";
 
-export type { RecommendationSettings, RecommendationWidgetProps } from "@/components/types";
+export type {
+  RecommendationSettings,
+  RecommendationWidgetProps,
+} from "@/components/types";
 
-export function RecommendationWidget ({
+export function RecommendationWidget({
   clientId,
   playerToken,
   settings = {},
@@ -19,12 +22,11 @@ export function RecommendationWidget ({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
-  const {
-    games,
-    isLoading,
-    error,
-    trackClick,
-  } = useRecommendation({ clientId, playerToken, containerRef: scrollRef });
+  const { games, isLoading, error, trackClick } = useRecommendation({
+    clientId,
+    playerToken,
+    containerRef: scrollRef,
+  });
 
   const checkScroll = () => {
     if (!scrollRef.current) return;
@@ -57,7 +59,10 @@ export function RecommendationWidget ({
 
   if (isLoading) {
     return (
-      <section className="relative w-full h-full min-h-[200px]" aria-label="Loading recommendations">
+      <section
+        className="relative w-full h-full min-h-[200px]"
+        aria-label="Loading recommendations"
+      >
         <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -67,7 +72,10 @@ export function RecommendationWidget ({
 
   if (error) {
     return (
-      <section className="relative w-full h-full min-h-[200px]" aria-label="Error">
+      <section
+        className="relative w-full h-full min-h-[200px]"
+        aria-label="Error"
+      >
         <div className="flex items-center justify-center h-full text-muted-foreground">
           {error}
         </div>
@@ -84,7 +92,10 @@ export function RecommendationWidget ({
   const showHeadline = settings.withHeadline !== false;
 
   return (
-    <section className="relative w-full h-full flex flex-col" aria-label="Game recommendations">
+    <section
+      className="relative w-full h-full flex flex-col"
+      aria-label="Game recommendations"
+    >
       {showHeadline && (
         <div className="flex items-end justify-between mb-8 px-6 md:px-12 lg:px-16">
           {/* <div>
@@ -105,52 +116,32 @@ export function RecommendationWidget ({
               {headlineSubtitle}
             </motion.h2>
           </div> */}
-
-          <div className="hidden md:flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 rounded-full border-[rgba(218,165,32,0.2)] text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 disabled:opacity-30 bg-transparent transition-colors duration-200"
-              onClick={() => scroll("left")}
-              disabled={!canScrollLeft}
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9 rounded-full border-[rgba(218,165,32,0.2)] text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 disabled:opacity-30 bg-transparent transition-colors duration-200"
-              onClick={() => scroll("right")}
-              disabled={!canScrollRight}
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       )}
 
       <div className="relative flex-1 flex flex-col justify-center pl-10">
-        {/* Left fade - only show when scrolled right */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
-          style={{
-            background: "linear-gradient(to right, hsl(240, 15%, 3%), transparent)",
-            opacity: canScrollLeft ? 1 : 0,
-            transition: "opacity 0.3s ease",
-          }}
-        />
-        {/* Right fade - only show when can scroll right */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none"
-          style={{
-            background: "linear-gradient(to left, hsl(240, 15%, 3%), transparent)",
-            opacity: canScrollRight ? 1 : 0,
-            transition: "opacity 0.3s ease",
-          }}
-        />
-
+        <div className="hidden md:flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 cursor-pointer rounded-full border-[rgba(218,165,32,0.2)] text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 disabled:opacity-30 bg-transparent transition-colors duration-200"
+            onClick={() => scroll("left")}
+            disabled={!canScrollLeft}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 cursor-pointer rounded-full border-[rgba(218,165,32,0.2)] text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 disabled:opacity-30 bg-transparent transition-colors duration-200"
+            onClick={() => scroll("right")}
+            disabled={!canScrollRight}
+            aria-label="Scroll right"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
         <div
           ref={scrollRef}
           onScroll={checkScroll}

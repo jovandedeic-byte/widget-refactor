@@ -65,3 +65,73 @@ export interface ApiGame {
   logo?: string;
   [key: string]: unknown;
 }
+
+// Hot/Cold widget: game with RTP and vendor
+export interface HotColdGame extends Game {
+  rtp?: number | null;
+  vendorName?: string | null;
+}
+
+// Get-vendors API response (hot/cold RTP list)
+export interface GetVendorsVendor {
+  id?: string | number;
+  name?: string;
+  data?: { id?: string | number; name?: string };
+}
+
+export interface GetVendorsGame {
+  id?: string | number;
+  name?: string;
+  rtp?: number;
+  desktop_image?: string;
+  game_image?: string;
+  logo?: string;
+  image?: string;
+  game_vendor_id?: string | number;
+  game_vendor_name?: string;
+  data?: {
+    id?: string | number;
+    name?: string;
+    rtp?: number;
+    desktop_image?: string;
+    game_image?: string;
+    logo?: string;
+    image?: string;
+    game_vendor_id?: string | number;
+    game_vendor_name?: string;
+  };
+}
+
+export interface GetVendorsResponse {
+  vendors?: GetVendorsVendor[];
+  games?: GetVendorsGame[];
+  data?: { cards?: unknown[] };
+  cards?: unknown[];
+}
+
+// Hot/Cold widget settings (customization via postMessage)
+export interface HotColdSettings {
+  backgroundType?: "image" | "video" | "gradient" | "transparent" | "vortex";
+  glow?: boolean;
+  hotVideoIndex?: number;
+  hotImageIndex?: number;
+  hotGradientColors?: [string, string];
+  hotGradientDirection?: string;
+  coldVideoIndex?: number;
+  coldImageIndex?: number;
+  coldGradientColors?: [string, string];
+  coldGradientDirection?: string;
+  videoIndex?: number;
+  imageIndex?: number;
+  imageExtension?: "jpg" | "png";
+  gradientColors?: [string, string];
+  gradientDirection?: string;
+  /** Play URL pattern, use {gameId} as placeholder */
+  gameUrl?: string;
+}
+
+export interface HotColdWidgetProps {
+  clientId: string;
+  playerToken?: string | null;
+  settings?: HotColdSettings;
+}

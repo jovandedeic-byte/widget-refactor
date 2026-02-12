@@ -8,6 +8,17 @@ const nextConfig: NextConfig = {
         hostname: "admiralbet.me",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+        pathname: "/**",
+      },
+      // Add the host that serves your get-vendors game images (e.g. API CDN) so Next/Image can load them
+      {
+        protocol: "https",
+        hostname: "core.gamblio.ai",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
