@@ -159,7 +159,7 @@ export function ChatBody ({ messages, isTyping = false, onMarkAsRead }: ChatBody
   }, [messages, onMarkAsRead, flushSeen]);
 
   return (
-    <ScrollArea ref={viewportRef} className="flex-1">
+    <ScrollArea ref={viewportRef} className="flex-1 min-h-0 min-w-0 w-full">
       <div className="p-4 space-y-4">
         {messages.length === 0 && !isTyping ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
