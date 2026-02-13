@@ -62,7 +62,7 @@ function getPeriodDates(period: HotColdPeriod): {
 
 function transformVendorsResponse(
   res: GetVendorsResponse,
-  vendorMap: Map<string | number, string>
+  vendorMap: Map<string | number, string>,
 ): HotColdGame[] {
   const games = res.games ?? [];
   return games.map((g: GetVendorsGame, index: number) => {
@@ -110,7 +110,7 @@ function buildVendorMap(res: GetVendorsResponse): Map<string | number, string> {
 
 function filterAndSort(
   games: HotColdGame[],
-  filter: HotColdFilter
+  filter: HotColdFilter,
 ): HotColdGame[] {
   const threshold = 95;
   const filtered =
@@ -140,7 +140,7 @@ function readCache(clientId: string, period: HotColdPeriod): CachedData | null {
 function writeCache(
   clientId: string,
   period: HotColdPeriod,
-  data: HotColdGame[]
+  data: HotColdGame[],
 ): void {
   if (typeof window === "undefined") return;
   try {
@@ -170,7 +170,7 @@ export function useHotCold({
   const [period, setPeriodState] = useState<HotColdPeriod>("daily");
   const [filter, setFilter] = useState<HotColdFilter>("hot");
   const refetchIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
+    null,
   );
   const periodRef = useRef<HotColdPeriod>(period);
   periodRef.current = period;
@@ -207,7 +207,7 @@ export function useHotCold({
       const list = transformVendorsResponse(res, vendorMap);
       return list;
     },
-    [clientId, authToken]
+    [clientId, authToken],
   );
 
   const loadPeriod = useCallback(
@@ -236,7 +236,7 @@ export function useHotCold({
         }
       }
     },
-    [clientId, filter, fetchPeriod]
+    [clientId, filter, fetchPeriod],
   );
 
   // Initial load: read from localStorage first, then optionally fetch
@@ -251,7 +251,7 @@ export function useHotCold({
       setIsLoading(false);
       // Prefetch other periods in background
       const others: HotColdPeriod[] = ["daily", "weekly", "monthly"].filter(
-        (p) => p !== period
+        (p) => p !== period,
       ) as HotColdPeriod[];
       others.forEach((p) => {
         if (!readCache(clientId, p)) {
@@ -274,7 +274,7 @@ export function useHotCold({
         setGames(filterAndSort(list, filter));
         setIsLoading(false);
         const others: HotColdPeriod[] = ["daily", "weekly", "monthly"].filter(
-          (p) => p !== period
+          (p) => p !== period,
         ) as HotColdPeriod[];
         others.forEach((p) => {
           fetchPeriod(p)
@@ -324,7 +324,7 @@ export function useHotCold({
           .catch(() => setIsLoading(false));
       }
     },
-    [clientId, filter, fetchPeriod]
+    [clientId, filter, fetchPeriod],
   );
 
   // Hourly refetch
