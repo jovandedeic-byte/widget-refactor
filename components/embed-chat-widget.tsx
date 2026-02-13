@@ -49,7 +49,7 @@ export function EmbedChatWidget({
 
   return (
     <LanguageContext.Provider value={language}>
-    <Card className="w-full h-full min-h-dvh flex flex-col overflow-hidden gap-0 rounded-none border-0">
+    <Card className="w-full h-full flex flex-col overflow-hidden gap-0 rounded-none border-0">
       <ChatHeader
         title={t.chatTitle}
         isChatActive={chatStarted && !isChatClosed}

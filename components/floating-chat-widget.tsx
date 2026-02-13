@@ -93,7 +93,6 @@ export function FloatingChatWidget({
       <div
         className={`
           transform transition-all duration-300 ease-out origin-bottom-right relative
-          max-md:fixed max-md:inset-0 max-md:z-50
           ${
             isOpen
               ? "opacity-100 scale-100 translate-y-0"
@@ -101,14 +100,7 @@ export function FloatingChatWidget({
           }
         `}
       >
-        
-        <Card
-          className="
-            flex flex-col overflow-hidden shadow-2xl gap-0 z-99999
-            absolute right-4 bottom-0 w-95 h-150
-            max-md:fixed max-md:inset-0 max-md:w-full max-md:h-full max-md:min-h-dvh max-md:rounded-none max-md:right-0 max-md:bottom-0
-          "
-        >
+        <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl gap-0 absolute right-4 bottom-0 z-99999">
           <ChatHeader
             title={t.chatTitle}
             isChatActive={chatStarted && !isChatClosed}
