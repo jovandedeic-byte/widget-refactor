@@ -7,7 +7,7 @@ import {
 } from "@/components/recommendation-widget";
 
 const MIN_WIDTH = 320;
-const MIN_HEIGHT = 460;
+const MIN_HEIGHT = 600;
 
 interface RecommendationConfig {
   clientId: string;
