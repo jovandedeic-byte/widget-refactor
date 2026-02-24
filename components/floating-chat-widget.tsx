@@ -9,6 +9,7 @@ import { PreChat } from "./pre-chat";
 import { ChatBody } from "./chat-body";
 import { ChatInput } from "./chat-input";
 import { ChatRating } from "./chat-rating";
+import { ChatBumpScreen } from "./chat-bump-screen";
 import { useChat } from "./use-chat";
 import { LanguageContext, useTranslations, type Language } from "@/lib/i18n";
 
@@ -34,6 +35,7 @@ export function FloatingChatWidget({
     isInputEnabled,
     isChatClosed,
     isTyping,
+    activeBump,
     ratingState,
     hasToken,
     startChat,
@@ -52,7 +54,10 @@ export function FloatingChatWidget({
   useEffect(() => {
     if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
         onOpenChange?.(false);
       }
@@ -83,15 +88,15 @@ export function FloatingChatWidget({
 
   return (
     <LanguageContext.Provider value={language}>
-    <div
-      ref={containerRef}
-      className={`fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4 ${
-        theme === "dark" ? "dark" : "light"
-      }`}
-    >
-      {/* Chat Widget */}
       <div
-        className={`
+        ref={containerRef}
+        className={`fixed bottom-4 right-4 z-50 flex flex-col items-end gap-4 ${
+          theme === "dark" ? "dark" : "light"
+        }`}
+      >
+        {/* Chat Widget */}
+        <div
+          className={`
           transform transition-all duration-300 ease-out origin-bottom-right relative
           ${
             isOpen
@@ -99,61 +104,71 @@ export function FloatingChatWidget({
               : "opacity-0 scale-95 translate-y-4 pointer-events-none"
           }
         `}
-      >
-        <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl gap-0 absolute right-4 bottom-0 z-99999">
-          <ChatHeader
-            title={t.chatTitle}
-            isChatActive={chatStarted && !isChatClosed}
-            onEndChat={endChat}
-            onClose={handleClose}
-          />
-
-          {!chatStarted ? (
-            <PreChat
-              onStartChat={startChat}
-              hasToken={hasToken}
-              onTokenStart={autoStart}
+        >
+          <Card className="w-95 h-150 flex flex-col overflow-hidden shadow-2xl gap-0 absolute right-4 bottom-0 z-99999">
+            <ChatHeader
+              title={t.chatTitle}
+              isChatActive={chatStarted && !isChatClosed && !activeBump}
+              onEndChat={endChat}
+              onClose={handleClose}
             />
-          ) : isChatClosed ? (
-            <>
-              <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
-              <ChatRating
-                ratingState={ratingState}
-                onSubmitRating={submitRating}
-                onSkip={handleSkipRating}
-                onNewChat={handleNewChat}
-              />
-            </>
-          ) : (
-            <>
-              <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
-              <ChatInput
-                onSendMessage={sendMessage}
-                disabled={!isInputEnabled}
-                persistDraft={hasToken}
-              />
-            </>
-          )}
-          <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full ">
-            {t.poweredBy}
-          </CardFooter>
-        </Card>
-      </div>
 
-      {/* Floating Launcher Button */}
-      <Button
-        onClick={handleToggle}
-        size="icon"
-        className={`
+            {!chatStarted ? (
+              <PreChat
+                onStartChat={startChat}
+                hasToken={hasToken}
+                onTokenStart={autoStart}
+              />
+            ) : activeBump ? (
+              <ChatBumpScreen secondsRemaining={activeBump.secondsRemaining} />
+            ) : isChatClosed ? (
+              <>
+                <ChatBody
+                  messages={messages}
+                  isTyping={isTyping}
+                  onMarkAsRead={markMessagesAsRead}
+                />
+                <ChatRating
+                  ratingState={ratingState}
+                  onSubmitRating={submitRating}
+                  onSkip={handleSkipRating}
+                  onNewChat={handleNewChat}
+                />
+              </>
+            ) : (
+              <>
+                <ChatBody
+                  messages={messages}
+                  isTyping={isTyping}
+                  onMarkAsRead={markMessagesAsRead}
+                />
+                <ChatInput
+                  onSendMessage={sendMessage}
+                  disabled={!isInputEnabled}
+                  persistDraft={hasToken}
+                />
+              </>
+            )}
+            <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full ">
+              {t.poweredBy}
+            </CardFooter>
+          </Card>
+        </div>
+
+        {/* Floating Launcher Button */}
+        <Button
+          onClick={handleToggle}
+          size="icon"
+          className={`
           h-14 w-14 rounded-full shadow-lg
           transition-transform duration-300 ease-out
           hover:scale-105 active:scale-95
         `}
-      >
-        <MessageCircle className="h-6 w-6" />
-        <span className="sr-only">{isOpen ? t.closeChat : t.openChat}</span>
-      </Button>
-    </div>
+        >
+          <MessageCircle className="h-6 w-6" />
+          <span className="sr-only">{isOpen ? t.closeChat : t.openChat}</span>
+        </Button>
+      </div>
     </LanguageContext.Provider>
   );
 }

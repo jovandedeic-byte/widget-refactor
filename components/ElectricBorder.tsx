@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, CSSProperties, ReactNode } from 'react';
+import React, { useMemo, CSSProperties, ReactNode } from 'react';
 
 function hexToRgba(hex: string, alpha: number = 1): string {
   if (!hex) return `rgba(0,0,0,${alpha})`;
@@ -19,7 +19,9 @@ function hexToRgba(hex: string, alpha: number = 1): string {
 interface ElectricBorderProps {
   children?: ReactNode;
   color?: string;
+  /** Animation speed multiplier (lower = slower). Maps to SVG animation duration. */
   speed?: number;
+  /** Kept for API compat but unused — displacement is fixed at 30 for the SVG filter. */
   chaos?: number;
   borderRadius?: number;
   className?: string;
@@ -30,283 +32,130 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
   children,
   color = '#5227FF',
   speed = 1,
-  chaos = 0.12,
+  chaos: _chaos,
   borderRadius = 24,
   className,
   style
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const animationRef = useRef<number | null>(null);
-  const timeRef = useRef(0);
-  const lastFrameTimeRef = useRef(0);
+  // Unique filter IDs so multiple cards on the same page don't collide
+  const filterId = useMemo(() => `eb-swirl-${Math.random().toString(36).slice(2, 8)}`, []);
 
-  const random = useCallback((x: number): number => {
-    return (Math.sin(x * 12.9898) * 43758.5453) % 1;
-  }, []);
-
-  const noise2D = useCallback(
-    (x: number, y: number): number => {
-      const i = Math.floor(x);
-      const j = Math.floor(y);
-      const fx = x - i;
-      const fy = y - j;
-
-      const a = random(i + j * 57);
-      const b = random(i + 1 + j * 57);
-      const c = random(i + (j + 1) * 57);
-      const d = random(i + 1 + (j + 1) * 57);
-
-      const ux = fx * fx * (3.0 - 2.0 * fx);
-      const uy = fy * fy * (3.0 - 2.0 * fy);
-
-      return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
-    },
-    [random]
-  );
-
-  const octavedNoise = useCallback(
-    (
-      x: number,
-      octaves: number,
-      lacunarity: number,
-      gain: number,
-      baseAmplitude: number,
-      baseFrequency: number,
-      time: number,
-      seed: number,
-      baseFlatness: number
-    ): number => {
-      let y = 0;
-      let amplitude = baseAmplitude;
-      let frequency = baseFrequency;
-
-      for (let i = 0; i < octaves; i++) {
-        let octaveAmplitude = amplitude;
-        if (i === 0) {
-          octaveAmplitude *= baseFlatness;
-        }
-        y += octaveAmplitude * noise2D(frequency * x + seed * 100, time * frequency * 0.3);
-        frequency *= lacunarity;
-        amplitude *= gain;
-      }
-
-      return y;
-    },
-    [noise2D]
-  );
-
-  const getCornerPoint = useCallback(
-    (
-      centerX: number,
-      centerY: number,
-      radius: number,
-      startAngle: number,
-      arcLength: number,
-      progress: number
-    ): { x: number; y: number } => {
-      const angle = startAngle + progress * arcLength;
-      return {
-        x: centerX + radius * Math.cos(angle),
-        y: centerY + radius * Math.sin(angle)
-      };
-    },
-    []
-  );
-
-  const getRoundedRectPoint = useCallback(
-    (t: number, left: number, top: number, width: number, height: number, radius: number): { x: number; y: number } => {
-      const straightWidth = width - 2 * radius;
-      const straightHeight = height - 2 * radius;
-      const cornerArc = (Math.PI * radius) / 2;
-      const totalPerimeter = 2 * straightWidth + 2 * straightHeight + 4 * cornerArc;
-      const distance = t * totalPerimeter;
-
-      let accumulated = 0;
-
-      if (distance <= accumulated + straightWidth) {
-        const progress = (distance - accumulated) / straightWidth;
-        return { x: left + radius + progress * straightWidth, y: top };
-      }
-      accumulated += straightWidth;
-
-      if (distance <= accumulated + cornerArc) {
-        const progress = (distance - accumulated) / cornerArc;
-        return getCornerPoint(left + width - radius, top + radius, radius, -Math.PI / 2, Math.PI / 2, progress);
-      }
-      accumulated += cornerArc;
-
-      if (distance <= accumulated + straightHeight) {
-        const progress = (distance - accumulated) / straightHeight;
-        return { x: left + width, y: top + radius + progress * straightHeight };
-      }
-      accumulated += straightHeight;
-
-      if (distance <= accumulated + cornerArc) {
-        const progress = (distance - accumulated) / cornerArc;
-        return getCornerPoint(left + width - radius, top + height - radius, radius, 0, Math.PI / 2, progress);
-      }
-      accumulated += cornerArc;
-
-      if (distance <= accumulated + straightWidth) {
-        const progress = (distance - accumulated) / straightWidth;
-        return { x: left + width - radius - progress * straightWidth, y: top + height };
-      }
-      accumulated += straightWidth;
-
-      if (distance <= accumulated + cornerArc) {
-        const progress = (distance - accumulated) / cornerArc;
-        return getCornerPoint(left + radius, top + height - radius, radius, Math.PI / 2, Math.PI / 2, progress);
-      }
-      accumulated += cornerArc;
-
-      if (distance <= accumulated + straightHeight) {
-        const progress = (distance - accumulated) / straightHeight;
-        return { x: left, y: top + height - radius - progress * straightHeight };
-      }
-      accumulated += straightHeight;
-
-      const progress = (distance - accumulated) / cornerArc;
-      return getCornerPoint(left + radius, top + radius, radius, Math.PI, Math.PI / 2, progress);
-    },
-    [getCornerPoint]
-  );
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const octaves = 10;
-    const lacunarity = 1.6;
-    const gain = 0.7;
-    const amplitude = chaos;
-    const frequency = 10;
-    const baseFlatness = 0;
-    const displacement = 60;
-    const borderOffset = 60;
-
-    const updateSize = () => {
-      const rect = container.getBoundingClientRect();
-      const width = rect.width + borderOffset * 2;
-      const height = rect.height + borderOffset * 2;
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      ctx.scale(dpr, dpr);
-
-      return { width, height };
-    };
-
-    let { width, height } = updateSize();
-
-    const drawElectricBorder = (currentTime: number) => {
-      if (!canvas || !ctx) return;
-
-      const deltaTime = (currentTime - lastFrameTimeRef.current) / 1000;
-      timeRef.current += deltaTime * speed;
-      lastFrameTimeRef.current = currentTime;
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(dpr, dpr);
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      const scale = displacement;
-      const left = borderOffset;
-      const top = borderOffset;
-      const borderWidth = width - 2 * borderOffset;
-      const borderHeight = height - 2 * borderOffset;
-      const maxRadius = Math.min(borderWidth, borderHeight) / 2;
-      const radius = Math.min(borderRadius, maxRadius);
-
-      const approximatePerimeter = 2 * (borderWidth + borderHeight) + 2 * Math.PI * radius;
-      const sampleCount = Math.floor(approximatePerimeter / 2);
-
-      ctx.beginPath();
-
-      for (let i = 0; i <= sampleCount; i++) {
-        const progress = i / sampleCount;
-
-        const point = getRoundedRectPoint(progress, left, top, borderWidth, borderHeight, radius);
-
-        const xNoise = octavedNoise(
-          progress * 8,
-          octaves,
-          lacunarity,
-          gain,
-          amplitude,
-          frequency,
-          timeRef.current,
-          0,
-          baseFlatness
-        );
-        const yNoise = octavedNoise(
-          progress * 8,
-          octaves,
-          lacunarity,
-          gain,
-          amplitude,
-          frequency,
-          timeRef.current,
-          1,
-          baseFlatness
-        );
-
-        const displacedX = point.x + xNoise * scale;
-        const displacedY = point.y + yNoise * scale;
-
-        if (i === 0) {
-          ctx.moveTo(displacedX, displacedY);
-        } else {
-          ctx.lineTo(displacedX, displacedY);
-        }
-      }
-
-      ctx.closePath();
-      ctx.stroke();
-
-      animationRef.current = requestAnimationFrame(drawElectricBorder);
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      const newSize = updateSize();
-      width = newSize.width;
-      height = newSize.height;
-    });
-    resizeObserver.observe(container);
-
-    animationRef.current = requestAnimationFrame(drawElectricBorder);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-      resizeObserver.disconnect();
-    };
-  }, [color, speed, chaos, borderRadius, octavedNoise, getRoundedRectPoint]);
+  // Map speed prop to animation duration (inverse relationship: higher speed = shorter duration)
+  const duration = Math.max(1, 6 / speed);
 
   return (
     <div
-      ref={containerRef}
       className={`relative overflow-visible isolate ${className ?? ''}`}
-      style={{ '--electric-border-color': color, borderRadius, ...style } as CSSProperties}
+      style={{ borderRadius, ...style } as CSSProperties}
     >
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[2]">
-        <canvas ref={canvasRef} className="block" />
-      </div>
+      {/* Hidden SVG holding the turbulence filter — zero layout cost */}
+      <svg
+        className="absolute w-0 h-0 overflow-hidden"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <defs>
+          <filter
+            id={filterId}
+            colorInterpolationFilters="sRGB"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="0.02"
+              numOctaves="10"
+              result="noise1"
+              seed="1"
+            />
+            <feOffset in="noise1" dx="0" dy="0" result="offsetNoise1">
+              <animate
+                attributeName="dy"
+                values="700; 0"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                calcMode="linear"
+              />
+            </feOffset>
+
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="0.02"
+              numOctaves="10"
+              result="noise2"
+              seed="1"
+            />
+            <feOffset in="noise2" dx="0" dy="0" result="offsetNoise2">
+              <animate
+                attributeName="dy"
+                values="0; -700"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                calcMode="linear"
+              />
+            </feOffset>
+
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="0.02"
+              numOctaves="10"
+              result="noise3"
+              seed="2"
+            />
+            <feOffset in="noise3" dx="0" dy="0" result="offsetNoise3">
+              <animate
+                attributeName="dx"
+                values="490; 0"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                calcMode="linear"
+              />
+            </feOffset>
+
+            <feTurbulence
+              type="turbulence"
+              baseFrequency="0.02"
+              numOctaves="10"
+              result="noise4"
+              seed="2"
+            />
+            <feOffset in="noise4" dx="0" dy="0" result="offsetNoise4">
+              <animate
+                attributeName="dx"
+                values="0; -490"
+                dur={`${duration}s`}
+                repeatCount="indefinite"
+                calcMode="linear"
+              />
+            </feOffset>
+
+            <feComposite in="offsetNoise1" in2="offsetNoise2" result="part1" />
+            <feComposite in="offsetNoise3" in2="offsetNoise4" result="part2" />
+            <feBlend in="part1" in2="part2" mode="color-dodge" result="combinedNoise" />
+
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="combinedNoise"
+              scale="30"
+              xChannelSelector="R"
+              yChannelSelector="B"
+            />
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Glow layers (same as before — pure CSS, no JS) */}
       <div className="absolute inset-0 rounded-[inherit] pointer-events-none z-0">
+        {/* Inner border with SVG turbulence filter applied — GPU composited */}
+        <div
+          className="absolute inset-0 rounded-[inherit] pointer-events-none"
+          style={{
+            border: `2px solid ${color}`,
+            filter: `url(#${filterId})`,
+          }}
+        />
         <div
           className="absolute inset-0 rounded-[inherit] pointer-events-none"
           style={{ border: `2px solid ${hexToRgba(color, 0.6)}`, filter: 'blur(1px)' }}

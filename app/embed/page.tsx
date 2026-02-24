@@ -5,8 +5,8 @@ import { FloatingChatWidget } from "@/components/floating-chat-widget";
 import type { Language } from "@/lib/i18n";
 
 const BUTTON_SIZE = 80;
-const OPEN_WIDTH = 500;
-const OPEN_HEIGHT = 800;
+const OPEN_WIDTH = "100vw";
+const OPEN_HEIGHT = "100dvh";
 
 interface ChatConfig {
   clientId: string;
@@ -15,10 +15,10 @@ interface ChatConfig {
   theme?: "light" | "dark";
 }
 
-function notifyParentSize(width: number, height: number) {
+function notifyParentSize(width: number | string, height: number | string) {
   window.parent.postMessage(
     { type: "gamblio-chat-resize", width, height },
-    "*"
+    "*",
   );
 }
 

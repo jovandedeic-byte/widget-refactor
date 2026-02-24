@@ -41,6 +41,9 @@ export interface Translations {
   attachmentAlt: string;
   wascoAlt: string;
   dateToday: string;
+  bumpCooldownTitle: string;
+  bumpCooldownDescription: string;
+  bumpCooldownTimer: (seconds: number) => string;
 }
 
 const en: Translations = {
@@ -82,6 +85,10 @@ const en: Translations = {
   attachmentAlt: "Attachment",
   wascoAlt: "@wasco",
   dateToday: "Today",
+  bumpCooldownTitle: "Chat temporarily blocked",
+  bumpCooldownDescription: "You cannot continue this conversation right now.",
+  bumpCooldownTimer: (seconds) =>
+    `Please wait ${seconds} second${seconds === 1 ? "" : "s"}.`,
 };
 
 const me: Translations = {
@@ -125,6 +132,10 @@ const me: Translations = {
   attachmentAlt: "Prilog",
   wascoAlt: "@wasco",
   dateToday: "Danas",
+  bumpCooldownTitle: "Razgovor je privremeno blokiran",
+  bumpCooldownDescription: "Trenutno ne mozete nastaviti ovu konverzaciju.",
+  bumpCooldownTimer: (seconds) =>
+    `Sacekajte ${seconds} sekund${seconds === 1 ? "" : "i"}.`,
 };
 
 export function getTranslations(lang: Language): Translations {

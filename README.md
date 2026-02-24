@@ -92,6 +92,12 @@ For a simpler integration, use a loader script that creates the iframe and handl
 | Iframe → Parent | `{ type: "gamblio-chat-ready" }`                        | Sent when iframe is ready to receive config                            |
 | Parent → Iframe | `{ type: "gamblio-chat-init", clientId, playerToken? }` | Initializes chat with `clientId` (required) and optional `playerToken` |
 
+Additional embed channels:
+
+- Recommendation uses `gamblio-recommendation-ready`, `gamblio-recommendation-init`, and `gamblio-recommendation-resize`.
+- Hot/cold uses `gamblio-hotcold-ready`, `gamblio-hotcold-init`, and `gamblio-hotcold-resize`.
+- Resize payload format for both is `{ type, width: "100%", height, minWidth, minHeight }`.
+
 #### Security checklist for production
 
 - Always validate `event.origin` in your `message` listener.
@@ -109,15 +115,15 @@ When `playerToken` is provided, the widget skips the pre-chat form and auto-star
 
 ## Environment Variables
 
-| Variable                               | Description                                                                 |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_CLIENT_ID`                | Default `clientId` for demo page                                           |
-| `NEXT_PUBLIC_PLAYER_TOKEN`             | Default `playerToken` for demo page                                         |
-| `NEXT_PUBLIC_CHAT_WS_URL`              | WebSocket URL for the chat backend                                          |
-| `NEXT_PUBLIC_THEME`                    | `"dark"` or `"light"` for floating widget                                   |
-| `NEXT_PUBLIC_API_URL`                  | Base API URL (e.g. `https://core.gamblio.ai/api/`) for recommendation and hot/cold widgets |
-| `NEXT_PUBLIC_USE_DUMMY_RECOMMENDATIONS`| Set to `true` to use dummy recommendation data when API is unavailable       |
-| `NEXT_PUBLIC_USE_DUMMY_HOT_COLD`       | Set to `true` to use dummy hot/cold games when get-vendors API is unavailable |
+| Variable                                | Description                                                                                |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_CLIENT_ID`                 | Default `clientId` for demo page                                                           |
+| `NEXT_PUBLIC_PLAYER_TOKEN`              | Default `playerToken` for demo page                                                        |
+| `NEXT_PUBLIC_CHAT_WS_URL`               | WebSocket URL for the chat backend                                                         |
+| `NEXT_PUBLIC_THEME`                     | `"dark"` or `"light"` for floating widget                                                  |
+| `NEXT_PUBLIC_API_URL`                   | Base API URL (e.g. `https://core.gamblio.ai/api/`) for recommendation and hot/cold widgets |
+| `NEXT_PUBLIC_USE_DUMMY_RECOMMENDATIONS` | Set to `true` to use dummy recommendation data when API is unavailable                     |
+| `NEXT_PUBLIC_USE_DUMMY_HOT_COLD`        | Set to `true` to use dummy hot/cold games when get-vendors API is unavailable              |
 
 ### Hot/Cold widget
 

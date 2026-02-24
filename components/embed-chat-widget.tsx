@@ -7,6 +7,7 @@ import { PreChat } from "./pre-chat";
 import { ChatBody } from "./chat-body";
 import { ChatInput } from "./chat-input";
 import { ChatRating } from "./chat-rating";
+import { ChatBumpScreen } from "./chat-bump-screen";
 import { useChat } from "./use-chat";
 import { LanguageContext, useTranslations, type Language } from "@/lib/i18n";
 
@@ -27,6 +28,7 @@ export function EmbedChatWidget({
     isInputEnabled,
     isChatClosed,
     isTyping,
+    activeBump,
     ratingState,
     hasToken,
     startChat,
@@ -49,39 +51,53 @@ export function EmbedChatWidget({
 
   return (
     <LanguageContext.Provider value={language}>
-    <Card className="w-full h-full flex flex-col overflow-hidden gap-0 rounded-none border-0">
-      <ChatHeader
-        title={t.chatTitle}
-        isChatActive={chatStarted && !isChatClosed}
-        onEndChat={endChat}
-      />
-
-      {!chatStarted ? (
-        <PreChat
-          onStartChat={startChat}
-          hasToken={hasToken}
-          onTokenStart={autoStart}
+      <Card className="w-full h-full flex flex-col overflow-hidden gap-0 rounded-none border-0">
+        <ChatHeader
+          title={t.chatTitle}
+          isChatActive={chatStarted && !isChatClosed && !activeBump}
+          onEndChat={endChat}
         />
-      ) : isChatClosed ? (
-        <>
-          <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
-          <ChatRating
-            ratingState={ratingState}
-            onSubmitRating={submitRating}
-            onSkip={handleSkipRating}
-            onNewChat={handleNewChat}
+
+        {!chatStarted ? (
+          <PreChat
+            onStartChat={startChat}
+            hasToken={hasToken}
+            onTokenStart={autoStart}
           />
-        </>
-      ) : (
-        <>
-          <ChatBody messages={messages} isTyping={isTyping} onMarkAsRead={markMessagesAsRead} />
-          <ChatInput onSendMessage={sendMessage} disabled={!isInputEnabled} persistDraft={hasToken} />
-        </>
-      )}
-      <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full">
-        {t.poweredBy}
-      </CardFooter>
-    </Card>
+        ) : activeBump ? (
+          <ChatBumpScreen secondsRemaining={activeBump.secondsRemaining} />
+        ) : isChatClosed ? (
+          <>
+            <ChatBody
+              messages={messages}
+              isTyping={isTyping}
+              onMarkAsRead={markMessagesAsRead}
+            />
+            <ChatRating
+              ratingState={ratingState}
+              onSubmitRating={submitRating}
+              onSkip={handleSkipRating}
+              onNewChat={handleNewChat}
+            />
+          </>
+        ) : (
+          <>
+            <ChatBody
+              messages={messages}
+              isTyping={isTyping}
+              onMarkAsRead={markMessagesAsRead}
+            />
+            <ChatInput
+              onSendMessage={sendMessage}
+              disabled={!isInputEnabled}
+              persistDraft={hasToken}
+            />
+          </>
+        )}
+        <CardFooter className="text-xs text-muted-foreground flex justify-center items-center h-8 w-full">
+          {t.poweredBy}
+        </CardFooter>
+      </Card>
     </LanguageContext.Provider>
   );
 }

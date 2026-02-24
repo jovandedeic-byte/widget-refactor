@@ -21,6 +21,8 @@ export interface PersistedSession {
   status: "active" | "closed";
   hasSubmittedRating: boolean;
   timestamp: number;
+  /** Epoch ms when swearword cooldown expires (null = no active cooldown) */
+  bumpExpiresAt?: number | null;
 }
 export interface Game {
   id: string;

@@ -107,6 +107,10 @@ export function useChat({
   >("none");
 
   const [isTyping, setIsTyping] = useState(false);
+  const [activeBump, setActiveBump] = useState<{
+    type: "swearwordCooldown";
+    secondsRemaining: number;
+  } | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const chatIdRef = useRef<string | null>(null);
@@ -148,6 +152,7 @@ export function useChat({
           setIsInputEnabled(true);
           setIsChatClosed(false);
           setRatingState("none");
+          setActiveBump(null);
 
           const backendName = data.full_name as string | undefined;
           if (backendName) {
@@ -155,7 +160,7 @@ export function useChat({
             setUserInfo((prev) =>
               prev
                 ? { ...prev, name: backendName }
-                : { name: backendName, email: "" }
+                : { name: backendName, email: "" },
             );
           }
 
@@ -200,6 +205,7 @@ export function useChat({
           setChatStarted(true);
           setIsChatClosed(false);
           setIsInputEnabled(true);
+          setActiveBump(null);
 
           saveSession({
             chatId: chatIdRef.current!,
@@ -218,8 +224,8 @@ export function useChat({
           if (messageId) {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === messageId ? { ...msg, deliveredAt } : msg
-              )
+                msg.id === messageId ? { ...msg, deliveredAt } : msg,
+              ),
             );
           }
           break;
@@ -231,8 +237,8 @@ export function useChat({
           if (messageId) {
             setMessages((prev) =>
               prev.map((msg) =>
-                msg.id === messageId ? { ...msg, seenBy } : msg
-              )
+                msg.id === messageId ? { ...msg, seenBy } : msg,
+              ),
             );
           }
           break;
@@ -246,12 +252,12 @@ export function useChat({
               if (!messageIdsStrings.includes(msg.id)) return msg;
               const seenBy = msg.seenBy ?? [];
               const hasCurrentSeen = seenBy.some(
-                (entry) => entry.seen_at === seenAt
+                (entry) => entry.seen_at === seenAt,
               );
               return hasCurrentSeen
                 ? msg
                 : { ...msg, seenBy: [...seenBy, { seen_at: seenAt }] };
-            })
+            }),
           );
           break;
         }
@@ -273,15 +279,11 @@ export function useChat({
               seen_at: number;
             }> | null;
             setMessages((prev) => {
-              // Match last undelivered user message with same content (most recent send)
+              // Match last undelivered user message (backend may have transformed the text, e.g. profanity filter)
               let idx = -1;
               for (let i = prev.length - 1; i >= 0; i--) {
                 const m = prev[i];
-                if (
-                  m.role === "user" &&
-                  m.deliveredAt == null &&
-                  m.content === text
-                ) {
+                if (m.role === "user" && m.deliveredAt == null) {
                   idx = i;
                   break;
                 }
@@ -389,6 +391,45 @@ export function useChat({
           });
           break;
         }
+        case "swearwordCooldown": {
+          const secondsRaw = Number(data.seconds_remaining ?? 0);
+          const secondsRemaining = Number.isFinite(secondsRaw)
+            ? Math.max(0, Math.floor(secondsRaw))
+            : 0;
+
+          if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
+            typingTimerRef.current = null;
+          }
+          if (messageTimerRef.current) {
+            clearTimeout(messageTimerRef.current);
+            messageTimerRef.current = null;
+          }
+          pendingMessagesRef.current = [];
+          isTypingRef.current = false;
+          setIsTyping(false);
+
+          setActiveBump({
+            type: "swearwordCooldown",
+            secondsRemaining,
+          });
+          setIsInputEnabled(false);
+
+          // Persist cooldown so it survives page refresh
+          if (chatIdRef.current) {
+            saveSession({
+              chatId: chatIdRef.current,
+              playerToken: playerTokenRef.current,
+              playerName: playerNameRef.current,
+              playerId: playerIdRef.current,
+              status: "active",
+              hasSubmittedRating: false,
+              timestamp: Date.now(),
+              bumpExpiresAt: Date.now() + secondsRemaining * 1000,
+            });
+          }
+          break;
+        }
         case "playerUnauthenticated": {
           if (data.is_authenticated === false) {
             setMessages((prev) => [
@@ -406,7 +447,7 @@ export function useChat({
         default:
       }
     },
-    [t]
+    [t],
   );
 
   const handleExistingMessages = useCallback(
@@ -426,7 +467,7 @@ export function useChat({
             msg &&
             msg.role !== "system_event" &&
             msg.role !== "system_chat_rating" &&
-            msg.is_sent_safely !== true
+            msg.is_sent_safely !== true,
         )
         .map((msg) => {
           const role = String(msg.role ?? "");
@@ -453,7 +494,7 @@ export function useChat({
         setMessages(parsed);
       }
     },
-    []
+    [],
   );
 
   const connectSocket = useCallback(
@@ -476,7 +517,13 @@ export function useChat({
         try {
           const data = JSON.parse(event.data);
 
-          if (data.tag === "bump" && data.bump_type) {
+          const isBumpMessage =
+            (data.tag === "bump" ||
+              data.tag === "send_bump" ||
+              data.type === "send_bump") &&
+            !!data.bump_type;
+
+          if (isBumpMessage) {
             handleBump(data as ServerMessage, startName ?? "");
           } else if (data.tag === "existingMessages") {
             handleExistingMessages(data);
@@ -496,6 +543,7 @@ export function useChat({
           setMessages([]);
           setIsChatClosed(false);
           setRatingState("none");
+          setActiveBump(null);
           welcomeMessageShownRef.current = false;
         }
       };
@@ -504,7 +552,7 @@ export function useChat({
         setIsInputEnabled(false);
       };
     },
-    [handleBump, handleExistingMessages, wsUrl]
+    [handleBump, handleExistingMessages, wsUrl],
   );
 
   const startChat = useCallback(
@@ -514,6 +562,7 @@ export function useChat({
       setIsInputEnabled(false);
       setIsChatClosed(false);
       setRatingState("none");
+      setActiveBump(null);
 
       if (!wsUrl) {
         setMessages((prev) => [
@@ -541,7 +590,7 @@ export function useChat({
 
       connectSocket(payload, name);
     },
-    [connectSocket, wsUrl, clientId, t]
+    [connectSocket, wsUrl, clientId, t],
   );
 
   const autoStart = useCallback(() => {
@@ -552,6 +601,7 @@ export function useChat({
     setIsInputEnabled(false);
     setIsChatClosed(false);
     setRatingState("none");
+    setActiveBump(null);
 
     const payload: StartChatPayload = {
       tag: "playerStartChatAndJoin",
@@ -610,7 +660,7 @@ export function useChat({
         setIsTyping(true);
       }, 1500);
     },
-    [isInputEnabled, t]
+    [isInputEnabled, t],
   );
 
   const markMessagesAsRead = useCallback((ids: string[]) => {
@@ -629,7 +679,7 @@ export function useChat({
         tag: "playerMarkMessagesAsRead",
         chatId: chatIdRef.current,
         messageIds: numericIds,
-      })
+      }),
     );
   }, []);
 
@@ -736,7 +786,7 @@ export function useChat({
         tempSocket.close();
       };
     },
-    [clientId, wsUrl]
+    [clientId, wsUrl],
   );
 
   const resetChat = useCallback(() => {
@@ -757,6 +807,7 @@ export function useChat({
     setIsChatClosed(false);
     setRatingState("none");
     setIsTyping(false);
+    setActiveBump(null);
     setUserInfo(null);
 
     if (socketRef.current) {
@@ -785,7 +836,7 @@ export function useChat({
         setUserInfo((prev) =>
           prev
             ? { ...prev, name: session.playerName! }
-            : { name: session.playerName!, email: "" }
+            : { name: session.playerName!, email: "" },
         );
       }
 
@@ -810,8 +861,17 @@ export function useChat({
           ? session.hasSubmittedRating
             ? "submitted"
             : "pending"
-          : "none"
+          : "none",
       );
+
+      // Restore swearword cooldown if it hasn't expired yet
+      if (session.bumpExpiresAt) {
+        const remaining = Math.ceil((session.bumpExpiresAt - Date.now()) / 1000);
+        if (remaining > 0) {
+          setActiveBump({ type: "swearwordCooldown", secondsRemaining: remaining });
+          setIsInputEnabled(false);
+        }
+      }
 
       // Closed session — just restore UI (rating or thanks), no WS reconnect
       if (session.status === "closed") {
@@ -829,7 +889,7 @@ export function useChat({
       };
       connectSocket(payload);
     },
-    [clientId, playerToken, connectSocket, t]
+    [clientId, playerToken, connectSocket, t],
   );
 
   // Clean up WebSocket on unmount — prevents Strict Mode double-mount
@@ -861,6 +921,46 @@ export function useChat({
   // Cross-tab sync: the `storage` event fires in OTHER tabs when localStorage changes.
   // When tab A saves/clears the session, tabs B/C/… receive the event and sync their UI.
   useEffect(() => {
+    if (!activeBump || activeBump.type !== "swearwordCooldown") return;
+
+    if (activeBump.secondsRemaining <= 0) {
+      setActiveBump(null);
+      if (chatStarted && !isChatClosed) {
+        const socket = socketRef.current;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          setIsInputEnabled(true);
+        }
+      }
+      // Clear bump from persisted session
+      if (chatIdRef.current) {
+        saveSession({
+          chatId: chatIdRef.current,
+          playerToken: playerTokenRef.current,
+          playerName: playerNameRef.current,
+          playerId: playerIdRef.current,
+          status: "active",
+          hasSubmittedRating: false,
+          timestamp: Date.now(),
+          bumpExpiresAt: null,
+        });
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setActiveBump((prev) => {
+        if (!prev || prev.type !== "swearwordCooldown") return prev;
+        return {
+          ...prev,
+          secondsRemaining: Math.max(0, prev.secondsRemaining - 1),
+        };
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [activeBump, chatStarted, isChatClosed]);
+
+  useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
       if (event.key !== SESSION_KEY) return;
 
@@ -883,7 +983,7 @@ export function useChat({
             setIsChatClosed(true);
             setIsInputEnabled(false);
             setRatingState(
-              session.hasSubmittedRating ? "submitted" : "pending"
+              session.hasSubmittedRating ? "submitted" : "pending",
             );
           }
           if (session.hasSubmittedRating) {
@@ -910,6 +1010,7 @@ export function useChat({
     isInputEnabled,
     isChatClosed,
     isTyping,
+    activeBump,
     ratingState,
     hasToken,
     startChat,

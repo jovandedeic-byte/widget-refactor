@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   HotColdWidget,
   type HotColdSettings,
 } from "@/components/hot-cold-widget";
+
+const MIN_WIDTH = 320;
+const MIN_HEIGHT = 520;
 
 interface HotColdConfig {
   clientId: string;
@@ -12,8 +15,31 @@ interface HotColdConfig {
   hotColdSettings: HotColdSettings;
 }
 
+function notifyParentSize(width: number | string, height: number) {
+  window.parent.postMessage(
+    {
+      type: "gamblio-hotcold-resize",
+      width,
+      height,
+      minWidth: MIN_WIDTH,
+      minHeight: MIN_HEIGHT,
+    },
+    "*",
+  );
+}
+
 export default function HotColdEmbedPage() {
   const [config, setConfig] = useState<HotColdConfig | null>(null);
+  const rootRef = useRef<HTMLElement>(null);
+
+  const publishSize = useCallback(() => {
+    const root = rootRef.current;
+    const measuredHeight = root
+      ? Math.ceil(root.getBoundingClientRect().height)
+      : document.documentElement.scrollHeight;
+
+    notifyParentSize("100%", Math.max(MIN_HEIGHT, measuredHeight));
+  }, []);
 
   useEffect(() => {
     let initialized = false;
@@ -38,6 +64,7 @@ export default function HotColdEmbedPage() {
 
     // Signal to parent that we're ready
     window.parent.postMessage({ type: "gamblio-hotcold-ready" }, "*");
+    notifyParentSize("100%", MIN_HEIGHT);
     const interval = setInterval(() => {
       if (!initialized) {
         window.parent.postMessage({ type: "gamblio-hotcold-ready" }, "*");
@@ -52,10 +79,35 @@ export default function HotColdEmbedPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!config) return;
+
+    publishSize();
+    const frame = window.requestAnimationFrame(publishSize);
+
+    const observer = new ResizeObserver(() => {
+      publishSize();
+    });
+
+    if (rootRef.current) {
+      observer.observe(rootRef.current);
+    }
+    observer.observe(document.body);
+    observer.observe(document.documentElement);
+
+    window.addEventListener("resize", publishSize);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", publishSize);
+    };
+  }, [config, publishSize]);
+
   if (!config) return null;
 
   return (
-    <main className="w-full h-full min-h-screen p-4 md:p-6">
+    <main ref={rootRef} className="w-full h-full min-h-screen p-4 md:p-6">
       <HotColdWidget
         clientId={config.clientId}
         playerToken={config.playerToken}
