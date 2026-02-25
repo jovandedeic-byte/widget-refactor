@@ -112,7 +112,7 @@ export function HotColdWidget({
   // Inner content (shared by all background modes)
   const widgetContent = (
     <>
-      <h2 className="text-center text-2xl md:text-3xl font-extrabold uppercase tracking-tight mt-6 mb-6 text-white/95 px-4">
+      <h2 className="text-center text-2xl md:text-3xl font-extrabold uppercase tracking-tight mt-6 mb-6 text-white/95 px-4 bg-transparent">
         {title}
       </h2>
 
@@ -286,7 +286,7 @@ export function HotColdWidget({
       </div>
 
       {/* Scroll area + cards */}
-      <div className="relative flex-1 flex flex-col justify-center pl-6 md:pl-10">
+      <div className="relative flex-1 flex flex-col justify-center bg-transparent">
         <div className="hidden md:flex items-center justify-end gap-2 pr-4">
           <Button
             variant="outline"
@@ -312,7 +312,7 @@ export function HotColdWidget({
         <div
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-6"
+          className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-6 bg-transparent"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -339,7 +339,7 @@ export function HotColdWidget({
                 <motion.div
                   key={game.id}
                   layout
-                  className="snap-start shrink-0"
+                  className="snap-start shrink-0 bg-transparent pl-4 md:pl-10"
                   role="listitem"
                   data-game-id={game.id}
                   initial={{ opacity: 0, y: 12 }}
