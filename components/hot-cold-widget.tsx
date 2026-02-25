@@ -10,14 +10,9 @@ import {
   Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Vortex } from "@/components/ui/vortex";
 import { HotColdGameCard } from "@/components/hot-cold-game-card";
 import type { HotColdGame, HotColdWidgetProps } from "@/components/types";
-import {
-  useHotCold,
-  type HotColdPeriod,
-  type HotColdFilter,
-} from "./use-hot-cold";
+import { useHotCold, type HotColdPeriod } from "./use-hot-cold";
 import LightVortex from "./light-vortex";
 
 export type { HotColdSettings, HotColdWidgetProps } from "@/components/types";

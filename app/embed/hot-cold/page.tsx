@@ -7,7 +7,7 @@ import {
 } from "@/components/hot-cold-widget";
 
 const MIN_WIDTH = 320;
-const MIN_HEIGHT = 600;
+const MIN_HEIGHT = 650;
 
 interface HotColdConfig {
   clientId: string;
