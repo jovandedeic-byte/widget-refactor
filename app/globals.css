@@ -124,3 +124,34 @@
     @apply bg-background text-foreground;
   }
 }
+@layer utilities {
+  @keyframes vortexSpin {
+    from {
+      transform: rotate(0deg) scale(1);
+    }
+    to {
+      transform: rotate(360deg) scale(1.2);
+    }
+  }
+
+  @keyframes vortexSpinReverse {
+    from {
+      transform: rotate(360deg) scale(1);
+    }
+    to {
+      transform: rotate(0deg) scale(1.3);
+    }
+  }
+
+  .animate-vortexSlow {
+    animation: vortexSpin 60s linear infinite;
+  }
+
+  .animate-vortexReverse {
+    animation: vortexSpinReverse 40s linear infinite;
+  }
+
+  .animate-vortexFast {
+    animation: vortexSpin 25s linear infinite;
+  }
+}

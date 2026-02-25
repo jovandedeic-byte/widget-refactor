@@ -18,6 +18,7 @@ import {
   type HotColdPeriod,
   type HotColdFilter,
 } from "./use-hot-cold";
+import LightVortex from "./light-vortex";
 
 export type { HotColdSettings, HotColdWidgetProps } from "@/components/types";
 
@@ -79,7 +80,7 @@ export function HotColdWidget({
   if (isLoading) {
     return (
       <section
-        className="relative w-full h-full min-h-[300px] flex items-center justify-center rounded-2xl bg-linear-to-br from-slate-900 to-slate-800"
+        className="relative w-full h-full min-h-75 flex items-center justify-center rounded-2xl bg-linear-to-br from-slate-900 to-slate-800"
         aria-label="Loading hot/cold games"
       >
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -90,7 +91,7 @@ export function HotColdWidget({
   if (error) {
     return (
       <section
-        className="relative w-full h-full min-h-[300px] flex items-center justify-center rounded-2xl bg-linear-to-br from-slate-900 to-slate-800 text-muted-foreground"
+        className="relative w-full h-full min-h-75 flex items-center justify-center rounded-2xl bg-linear-to-br from-slate-900 to-slate-800 text-muted-foreground"
         aria-label="Error"
       >
         {error}
@@ -110,8 +111,8 @@ export function HotColdWidget({
         ? "linear-gradient(135deg, rgba(30, 20, 10, 0.98) 0%, rgba(60, 30, 10, 0.95) 100%)"
         : "linear-gradient(135deg, rgba(10, 20, 40, 0.98) 0%, rgba(20, 35, 60, 0.95) 100%)"
       : bgType === "vortex"
-      ? "#000"
-      : undefined;
+        ? "#000"
+        : undefined;
 
   // Inner content (shared by all background modes)
   const widgetContent = (
@@ -125,7 +126,7 @@ export function HotColdWidget({
         <div />
         {/* Hot / Cold toggle */}
         <motion.div
-          className="relative flex items-center h-[46px] rounded-[23px] cursor-pointer overflow-hidden p-0"
+          className="relative flex items-center h-11.5 rounded-[23px] cursor-pointer overflow-hidden p-0"
           onClick={() => setFilter(isHot ? "cold" : "hot")}
           role="switch"
           aria-checked={isHot}
@@ -134,7 +135,7 @@ export function HotColdWidget({
         >
           {/* HOT label */}
           <motion.div
-            className="relative flex items-center gap-2 h-full z-[1] pointer-events-none whitespace-nowrap font-medium text-white/90 pl-5 pr-9"
+            className="relative flex items-center gap-2 h-full z-1 pointer-events-none whitespace-nowrap font-medium text-white/90 pl-5 pr-9"
             style={{
               order: 1,
               fontSize: "0.85em",
@@ -196,7 +197,7 @@ export function HotColdWidget({
 
           {/* COLD label */}
           <motion.div
-            className="relative flex items-center gap-2 h-full z-[1] pointer-events-none whitespace-nowrap font-medium text-white/90 pr-5 pl-9"
+            className="relative flex items-center gap-2 h-full z-1 pointer-events-none whitespace-nowrap font-medium text-white/90 pr-5 pl-9"
             style={{
               order: 3,
               fontSize: "0.85em",
@@ -375,23 +376,10 @@ export function HotColdWidget({
   if (bgType === "vortex") {
     return (
       <section
-        className="relative w-full h-full rounded-2xl overflow-hidden min-h-[400px]"
+        className="relative w-full h-full rounded-2xl overflow-hidden min-h-100"
         aria-label="Live RTP heatmap"
       >
-        <Vortex
-          backgroundColor={"#000000"}
-          baseHue={isHot ? 2 : 210}
-          rangeY={200}
-          particleCount={700}
-          baseSpeed={0.0}
-          rangeSpeed={1.5}
-          baseRadius={1}
-          rangeRadius={2}
-          containerClassName="w-full h-full"
-          className="flex flex-col w-full h-full"
-        >
-          {widgetContent}
-        </Vortex>
+        <LightVortex hue={isHot ? "red" : "blue"}>{widgetContent}</LightVortex>
       </section>
     );
   }
@@ -399,7 +387,7 @@ export function HotColdWidget({
   // Gradient (default) background
   return (
     <section
-      className="relative w-full h-full flex flex-col rounded-2xl overflow-hidden min-h-[400px]"
+      className="relative w-full h-full flex flex-col rounded-2xl overflow-hidden min-h-100"
       aria-label="Live RTP heatmap"
       style={{ background: sectionBg }}
     >
