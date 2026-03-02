@@ -10,8 +10,6 @@ import type {
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REFETCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const API_URL = process.env.NEXT_PUBLIC_API_HOT_COLD_URL || "";
-console.log("🚀 ~ API_URL:", API_URL);
 
 export type HotColdPeriod = "daily" | "weekly" | "monthly";
 export type HotColdFilter = "hot" | "cold";
