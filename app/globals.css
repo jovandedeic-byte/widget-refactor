@@ -160,4 +160,33 @@
   .animate-vortexFast {
     animation: vortexSpin 20s ease-in-out infinite;
   }
+
+  @keyframes hotColdFadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hot-cold-list-enter {
+    animation: hotColdFadeInUp 220ms ease-out;
+  }
+
+  .hot-cold-card-enter {
+    opacity: 0;
+    animation: hotColdFadeInUp 280ms ease-out forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hot-cold-list-enter,
+    .hot-cold-card-enter {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
 }

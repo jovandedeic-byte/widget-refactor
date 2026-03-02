@@ -68,49 +68,21 @@ export interface ApiGame {
   [key: string]: unknown;
 }
 
-// Hot/Cold widget: game with RTP and vendor
-export interface HotColdGame extends Game {
-  rtp?: number | null;
-  vendorName?: string | null;
+// Hot/Cold widget
+
+export interface HotColdGame {
+  id: number | string;
+  name: string;
+  desktopImage: string;
+  mobileImage: string;
+  rtp: number;
+  gameVendorId: number;
+  gameVendorName: string;
 }
 
-// Get-vendors API response (hot/cold RTP list)
-export interface GetVendorsVendor {
-  id?: string | number;
-  name?: string;
-  data?: { id?: string | number; name?: string };
-}
-
-export interface GetVendorsGame {
-  id?: string | number;
-  name?: string;
-  rtp?: number;
-  desktop_image?: string;
-  game_image?: string;
-  logo?: string;
-  image?: string;
-  game_vendor_id?: string | number;
-  game_vendor_name?: string;
-  data?: {
-    id?: string | number;
-    name?: string;
-    rtp?: number;
-    desktop_image?: string;
-    game_image?: string;
-    logo?: string;
-    image?: string;
-    game_vendor_id?: string | number;
-    game_vendor_name?: string;
-  };
-}
-
-export interface GetVendorsResponse {
-  vendors?: GetVendorsVendor[];
-  games?: GetVendorsGame[];
-  hot?: GetVendorsGame[];
-  cold?: GetVendorsGame[];
-  data?: { cards?: unknown[] };
-  cards?: unknown[];
+export interface HotColdResponse {
+  hot?: HotColdGame[];
+  cold?: HotColdGame[];
 }
 
 // Hot/Cold widget settings (customization via postMessage)

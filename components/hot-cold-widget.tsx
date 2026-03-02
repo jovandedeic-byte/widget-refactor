@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -69,7 +68,7 @@ export function HotColdWidget({
   };
 
   const handlePlay = (game: HotColdGame) => {
-    trackClick(game.id);
+    trackClick(String(game.id));
   };
 
   if (isLoading) {
@@ -98,6 +97,7 @@ export function HotColdWidget({
   const isHot = filter === "hot";
   const gameUrl = settings.gameUrl;
   const bgType = settings.backgroundType;
+  const listAnimationKey = `${filter}-${period}`;
 
   // Determine background style (only for gradient / default)
   const sectionBg =
@@ -120,16 +120,15 @@ export function HotColdWidget({
       <div className="flex flex-wrap items-center justify-between gap-4 md:gap-6 mb-6 px-4">
         <div />
         {/* Hot / Cold toggle */}
-        <motion.div
-          className="relative flex items-center h-11.5 rounded-[23px] cursor-pointer overflow-hidden p-0"
+        <div
+          className="relative flex items-center h-11.5 rounded-[23px] cursor-pointer overflow-hidden p-0 active:scale-[0.97] transition-transform"
           onClick={() => setFilter(isHot ? "cold" : "hot")}
           role="switch"
           aria-checked={isHot}
           aria-label="Toggle hot or cold games"
-          whileTap={{ scale: 0.97 }}
         >
           {/* HOT label */}
-          <motion.div
+          <div
             className="relative flex items-center gap-2 h-full z-1 pointer-events-none whitespace-nowrap font-medium text-white/90 pl-5 pr-9"
             style={{
               order: 1,
@@ -139,9 +138,9 @@ export function HotColdWidget({
               borderRadius: "23px 0 0 23px",
               border: "2px solid #e8843c",
               borderRight: "none",
+              opacity: isHot ? 1 : 0.6,
+              transition: "opacity 0.3s ease",
             }}
-            animate={{ opacity: isHot ? 1 : 0.6 }}
-            transition={{ duration: 0.3 }}
           >
             <Flame
               className="h-4 w-4"
@@ -159,7 +158,7 @@ export function HotColdWidget({
             >
               HOT
             </span>
-          </motion.div>
+          </div>
 
           {/* Toggle knob */}
           <div
@@ -175,7 +174,7 @@ export function HotColdWidget({
               border: "1px solid rgba(255, 255, 255, 0.08)",
             }}
           >
-            <motion.div
+            <div
               className="absolute top-1/2 -translate-y-1/2 rounded-full"
               style={{
                 width: 28,
@@ -183,15 +182,14 @@ export function HotColdWidget({
                 background: "linear-gradient(180deg, #ffffff 0%, #e0e0e0 100%)",
                 boxShadow:
                   "0 2px 6px rgba(0, 0, 0, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.8)",
+                left: isHot ? 4 : "calc(100% - 32px)",
+                transition: "left 0.25s ease",
               }}
-              initial={false}
-              animate={{ left: isHot ? 4 : "calc(100% - 32px)" }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           </div>
 
           {/* COLD label */}
-          <motion.div
+          <div
             className="relative flex items-center gap-2 h-full z-1 pointer-events-none whitespace-nowrap font-medium text-white/90 pr-5 pl-9"
             style={{
               order: 3,
@@ -201,9 +199,9 @@ export function HotColdWidget({
               borderRadius: "0 23px 23px 0",
               border: "2px solid #4a9eff",
               borderLeft: "none",
+              opacity: isHot ? 0.6 : 1,
+              transition: "opacity 0.3s ease",
             }}
-            animate={{ opacity: isHot ? 0.6 : 1 }}
-            transition={{ duration: 0.3 }}
           >
             <Snowflake
               className="h-4 w-4"
@@ -221,8 +219,8 @@ export function HotColdWidget({
             >
               COLD
             </span>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Period selector */}
         <div
@@ -245,8 +243,7 @@ export function HotColdWidget({
                 aria-label={`Period: ${p.label}`}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="period-pill"
+                  <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       borderRadius: 50,
@@ -257,12 +254,10 @@ export function HotColdWidget({
                       boxShadow:
                         "inset 0 -2px 4px 1px rgba(0, 0, 0, 0.1), inset 0 -4px 4px 1px rgba(255, 255, 255, 0.1), inset 0 0 2px 1px rgba(255, 255, 255, 0.3), 0 1px 4px 1px rgba(0, 0, 0, 0.1), 0 1px 4px 1px rgba(0, 0, 0, 0.05)",
                     }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
                 {isActive && (
-                  <motion.div
-                    layoutId="period-shine"
+                  <div
                     className="absolute pointer-events-none"
                     style={{
                       top: 1,
@@ -275,7 +270,6 @@ export function HotColdWidget({
                         "linear-gradient(to bottom, rgba(255, 255, 255, 0.4), transparent)",
                       opacity: 0.75,
                     }}
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
                 <span className="relative z-10">{p.label}</span>
@@ -310,9 +304,10 @@ export function HotColdWidget({
           </Button>
         </div>
         <div
+          key={listAnimationKey}
           ref={scrollRef}
           onScroll={checkScroll}
-          className="flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-6 bg-transparent"
+          className="hot-cold-list-enter flex gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory py-6 bg-transparent"
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -323,45 +318,29 @@ export function HotColdWidget({
           role="list"
           aria-label="Game cards"
         >
-          <AnimatePresence mode="popLayout">
-            {games.length === 0 ? (
-              <motion.p
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center justify-center min-w-full py-12 text-white/60"
+          {games.length === 0 ? (
+            <p className="hot-cold-list-enter flex items-center justify-center min-w-full py-12 text-white/60">
+              No games in this period
+            </p>
+          ) : (
+            games.map((game, i) => (
+              <div
+                key={game.id}
+                className="hot-cold-card-enter snap-start shrink-0 bg-transparent pl-4 md:pl-10"
+                style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                role="listitem"
+                data-game-id={game.id}
               >
-                No games in this period
-              </motion.p>
-            ) : (
-              games.map((game, i) => (
-                <motion.div
-                  key={game.id}
-                  layout
-                  className="snap-start shrink-0 bg-transparent pl-4 md:pl-10"
-                  role="listitem"
-                  data-game-id={game.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{
-                    duration: 0.35,
-                    delay: i * 0.04,
-                    ease: "easeOut",
-                  }}
-                >
-                  <HotColdGameCard
-                    game={game}
-                    index={i}
-                    filter={filter}
-                    gameUrl={gameUrl}
-                    onPlay={handlePlay}
-                  />
-                </motion.div>
-              ))
-            )}
-          </AnimatePresence>
+                <HotColdGameCard
+                  game={game}
+                  index={i}
+                  filter={filter}
+                  gameUrl={gameUrl}
+                  onPlay={handlePlay}
+                />
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>

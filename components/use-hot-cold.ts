@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, RefObject } from "react";
-import type {
-  HotColdGame,
-  GetVendorsResponse,
-  GetVendorsGame,
-  GetVendorsVendor,
-} from "./types";
+import type { HotColdGame, HotColdResponse } from "./types";
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REFETCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -32,109 +27,25 @@ const PERIOD_DAYS: Record<HotColdPeriod, number> = {
   monthly: 30,
 };
 
-function transformVendorsResponse(
-  res: GetVendorsResponse,
-  vendorMap: Map<string | number, string>,
-): HotColdGame[] {
-  const games = res.games ?? [];
-  return games.map((g: GetVendorsGame, index: number) => {
-    const data = g.data ?? g;
-    const id = String(data.id ?? g.id ?? index);
-    const title = data.name ?? g.name ?? `Game ${id}`;
-    const cover =
-      data.desktop_image ??
-      g.desktop_image ??
-      data.game_image ??
-      g.game_image ??
-      data.logo ??
-      g.logo ??
-      data.image ??
-      g.image ??
-      "/placeholder.svg";
-    const rtp = data.rtp ?? g.rtp ?? null;
-    const gameVendorId = data.game_vendor_id ?? g.game_vendor_id;
-    const vendorName =
-      data.game_vendor_name ??
-      g.game_vendor_name ??
-      (gameVendorId != null ? vendorMap.get(gameVendorId) : null) ??
-      "Unknown";
-    return {
-      id,
-      title,
-      cover,
-      accentColor: "#daa520",
-      rtp: rtp != null ? Number(rtp) : null,
-      vendorName: vendorName ?? null,
-    };
-  });
-}
+// function sortByRtp(games: HotColdGame[], filter: HotColdFilter): HotColdGame[] {
+//   return filter === "hot"
+//     ? [...games].sort((a, b) => (b.rtp ?? 0) - (a.rtp ?? 0))
+//     : [...games].sort((a, b) => (a.rtp ?? 0) - (b.rtp ?? 0));
+// }
 
-function buildVendorMap(res: GetVendorsResponse): Map<string | number, string> {
-  const map = new Map<string | number, string>();
-  const vendors = res.vendors ?? [];
-  vendors.forEach((v: GetVendorsVendor) => {
-    const id = v.id ?? v.data?.id;
-    const name = v.name ?? v.data?.name;
-    if (id != null && name) map.set(id, name);
-  });
-  return map;
-}
-
-function filterAndSort(
-  games: HotColdGame[],
-  filter: HotColdFilter,
-): HotColdGame[] {
-  const threshold = 95;
-  const filtered =
-    filter === "hot"
-      ? games.filter((g) => (g.rtp ?? 0) > threshold)
-      : games.filter((g) => (g.rtp ?? 0) <= threshold);
-  return filter === "hot"
-    ? [...filtered].sort((a, b) => (b.rtp ?? 0) - (a.rtp ?? 0))
-    : [...filtered].sort((a, b) => (a.rtp ?? 0) - (b.rtp ?? 0));
-}
-
-function sortByRtp(games: HotColdGame[], filter: HotColdFilter): HotColdGame[] {
-  return filter === "hot"
-    ? [...games].sort((a, b) => (b.rtp ?? 0) - (a.rtp ?? 0))
-    : [...games].sort((a, b) => (a.rtp ?? 0) - (b.rtp ?? 0));
-}
-
-function mapGames(rawGames: GetVendorsGame[]): HotColdGame[] {
-  return rawGames.map((game, index) => {
-    const data = game.data ?? game;
-    const id = String(data.id ?? game.id ?? index);
-    const title = data.name ?? game.name ?? `Game ${id}`;
-    const cover =
-      data.desktop_image ??
-      game.desktop_image ??
-      data.game_image ??
-      game.game_image ??
-      data.logo ??
-      game.logo ??
-      data.image ??
-      game.image ??
-      "/placeholder.svg";
-    const rtp = data.rtp ?? game.rtp ?? null;
-    const vendorName =
-      data.game_vendor_name ?? game.game_vendor_name ?? "Unknown";
-
-    return {
-      id,
-      title,
-      cover,
-      accentColor: "#daa520",
-      rtp: rtp != null ? Number(rtp) : null,
-      vendorName,
-    };
-  });
+function mapGames(rawGames: HotColdGame[]): HotColdGame[] {
+  return rawGames.map((game) => ({
+    ...game,
+    rtp: Number(game.rtp) || 0,
+    gameVendorId: Number(game.gameVendorId) || 0,
+  }));
 }
 
 function getGamesForFilter(
   cached: CachedData,
   filter: HotColdFilter,
 ): HotColdGame[] {
-  return sortByRtp(cached[filter] ?? [], filter);
+  return filter === "hot" ? cached.hot : cached.cold;
 }
 
 function readCache(clientId: string, period: HotColdPeriod): CachedData | null {
@@ -164,7 +75,10 @@ function writeCache(
   if (typeof window === "undefined") return;
   try {
     const key = getStorageKey(clientId, period);
-    localStorage.setItem(key, JSON.stringify({ data, fetchedAt: Date.now() }));
+    localStorage.setItem(
+      key,
+      JSON.stringify({ hot: data.hot, cold: data.cold, fetchedAt: Date.now() }),
+    );
   } catch {
     // ignore
   }
@@ -221,22 +135,13 @@ export function useHotCold({
         throw new Error(`HTTP ${response.status}: ${text.slice(0, 100)}`);
       }
 
-      const res: GetVendorsResponse = await response.json();
+      const res: HotColdResponse = await response.json();
 
-      if (res.hot || res.cold) {
-        const hotGames = mapGames(res.hot ?? []);
-        const coldGames = mapGames(res.cold ?? []);
-        return {
-          hot: sortByRtp(hotGames, "hot"),
-          cold: sortByRtp(coldGames, "cold"),
-        };
-      }
-
-      const vendorMap = buildVendorMap(res);
-      const list = transformVendorsResponse(res, vendorMap);
+      const hotGames = mapGames(res.hot ?? []);
+      const coldGames = mapGames(res.cold ?? []);
       return {
-        hot: filterAndSort(list, "hot"),
-        cold: filterAndSort(list, "cold"),
+        hot: hotGames,
+        cold: coldGames,
       };
     },
     [clientId, authToken, playerToken],
@@ -256,7 +161,7 @@ export function useHotCold({
       try {
         const periodGames = await fetchPeriod(targetPeriod);
         writeCache(clientId, targetPeriod, periodGames);
-        setGames(sortByRtp(periodGames[filter], filter));
+        setGames(periodGames[filter]);
         setError(null);
       } catch (err) {
         console.error("[HotCold] Fetch error:", err);
@@ -300,7 +205,7 @@ export function useHotCold({
       .then((periodGames) => {
         if (cancelled) return;
         writeCache(clientId, period, periodGames);
-        setGames(sortByRtp(periodGames[filter], filter));
+        setGames(periodGames[filter]);
         setIsLoading(false);
         const others: HotColdPeriod[] = ["daily", "weekly", "monthly"].filter(
           (p) => p !== period,
@@ -346,7 +251,7 @@ export function useHotCold({
           .then((periodGames) => {
             writeCache(clientId, p, periodGames);
             if (periodRef.current === p) {
-              setGames(sortByRtp(periodGames[filter], filter));
+              setGames(periodGames[filter]);
             }
             setIsLoading(false);
           })
@@ -366,7 +271,7 @@ export function useHotCold({
         fetchPeriod(p)
           .then((periodGames) => {
             writeCache(clientId, p, periodGames);
-            if (p === period) setGames(sortByRtp(periodGames[filter], filter));
+            if (p === period) setGames(periodGames[filter]);
           })
           .catch(() => {});
       });

@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ElectricBorder from "@/components/ElectricBorder";
@@ -23,12 +22,11 @@ export function HotColdGameCard({
   onPlay,
 }: HotColdGameCardProps) {
   const isHot = filter === "hot";
-  const rtpDisplay =
-    game.rtp != null ? `${Number(game.rtp).toFixed(2)}%` : "—";
+  const rtpDisplay = game.rtp != null ? `${Number(game.rtp).toFixed(2)}%` : "—";
 
   const resolveUrl = () => {
     if (!gameUrl) return undefined;
-    return gameUrl.replace("{gameId}", game.id);
+    return gameUrl.replace("{gameId}", String(game.id));
   };
 
   const handlePlay = (e: React.MouseEvent) => {
@@ -40,23 +38,11 @@ export function HotColdGameCard({
 
   const electricColor = isHot ? "#e8843c" : "#4a9eff";
   const rtpColor = isHot ? "text-emerald-400" : "text-rose-400";
-
   return (
-    <motion.article
-      className="relative shrink-0 w-[250px] sm:w-[260px] md:w-[280px] group cursor-pointer select-none"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: 0.4,
-        delay: index * 0.05,
-        ease: "easeOut",
-      }}
-      whileHover={{
-        scale: 1.02,
-        transition: { duration: 0.2 },
-      }}
+    <article
+      className="relative shrink-0 w-62.5 sm:w-65 md:w-70 group cursor-pointer select-none transition-transform duration-200 hover:scale-[1.02]"
       role="group"
-      aria-label={`${game.title} - RTP ${rtpDisplay}`}
+      aria-label={`${game.name} - RTP ${rtpDisplay}`}
     >
       <ElectricBorder
         color={electricColor}
@@ -65,42 +51,36 @@ export function HotColdGameCard({
         borderRadius={16}
       >
         <div className="relative rounded-2xl overflow-hidden bg-black/60 p-4">
+          {/* TODO: remove hardcoded domain and use gameUrl pattern instead when available */}
           <img
-            src={game.cover || "/placeholder.svg"}
-            alt={game.title}
+            src={`https://admiralbet.me/${game.desktopImage}`}
+            alt={game.name}
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/placeholder.svg";
             }}
             className="w-full rounded-xl mb-3 object-cover"
             style={{ aspectRatio: "16/12" }}
           />
-
           <h3 className="text-sm font-bold text-white truncate mb-1 uppercase tracking-tight">
-            {game.title}
+            {game.name}
           </h3>
-
-          <div
-            className={`text-sm font-semibold mb-1 ${rtpColor}`}
-          >
+          <div className={`text-sm font-semibold mb-1 ${rtpColor}`}>
             {rtpDisplay} RTP {isHot ? "↑" : "↓"}
           </div>
-
-          {game.vendorName && (
+          {game.gameVendorName && (
             <p className="text-xs text-gray-400 mb-3 truncate">
-              {game.vendorName}
+              {game.gameVendorName}
             </p>
           )}
-
           <Button
             size="sm"
             className="w-full rounded-lg font-bold text-xs uppercase gap-1.5 cursor-pointer border-0"
             style={{
-              background:
-                "linear-gradient(to right, #28a745, #218838)",
+              background: "linear-gradient(to right, #28a745, #218838)",
               color: "#fff",
               boxShadow: "0 4px 12px rgba(40, 167, 69, 0.4)",
             }}
-            aria-label={`Play ${game.title}`}
+            aria-label={`Play ${game.name}`}
             onClick={handlePlay}
           >
             <Play className="h-3.5 w-3.5" />
@@ -108,6 +88,6 @@ export function HotColdGameCard({
           </Button>
         </div>
       </ElectricBorder>
-    </motion.article>
+    </article>
   );
 }
