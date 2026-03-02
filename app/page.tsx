@@ -8,18 +8,18 @@ import type { Language } from "@/lib/i18n";
 // use the embed URLs in an iframe and send gamblio-chat-init / gamblio-recommendation-init / gamblio-hotcold-init.
 const THEME = process.env.NEXT_PUBLIC_THEME || "dark";
 const LANGUAGE = (process.env.NEXT_PUBLIC_LANGUAGE || "en") as Language;
-const DEMO_CLIENT_ID = "0b7e7dee87b1c3b98e72131173dfbbbf";
+const CLIENT_ID = process.env.NEXT_PUBLIC_CLIENT_ID || "";
 
 export default function Home() {
   return (
     <>
       {/* <RecommendationWidget
-        clientId={DEMO_CLIENT_ID}
+        clientId={CLIENT_ID}
         playerToken="269f54186d39f8da2c2837b42e8170b9e835aca3269b942c664eb3e5af0eef38615c424e06d5db3ccba30895f038226720c2feab6de37296710756fdf52456c4"
       /> */}
       <section className="w-full  mx-auto px-4 py-8">
         <HotColdWidget
-          clientId={DEMO_CLIENT_ID}
+          clientId={CLIENT_ID}
           playerToken={null}
           settings={{
             gameUrl: "https://example.com/play/{gameId}",
@@ -28,7 +28,7 @@ export default function Home() {
         />
       </section>
       <FloatingChatWidget
-        clientId={DEMO_CLIENT_ID}
+        clientId={CLIENT_ID}
         playerToken={null}
         theme={THEME}
         language={LANGUAGE}

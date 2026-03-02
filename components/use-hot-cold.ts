@@ -10,6 +10,8 @@ import type {
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REFETCH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const API_URL = process.env.NEXT_PUBLIC_API_HOT_COLD_URL || "";
+console.log("🚀 ~ API_URL:", API_URL);
 
 export type HotColdPeriod = "daily" | "weekly" | "monthly";
 export type HotColdFilter = "hot" | "cold";
@@ -21,44 +23,16 @@ function getStorageKey(clientId: string, period: HotColdPeriod): string {
 }
 
 interface CachedData {
-  data: HotColdGame[];
+  hot: HotColdGame[];
+  cold: HotColdGame[];
   fetchedAt: number;
 }
 
-function getPeriodDates(period: HotColdPeriod): {
-  dateFrom: number;
-  dateTo: number;
-} {
-  const today = new Date();
-  const startOfToday = new Date(today);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(today);
-  endOfToday.setHours(23, 59, 59, 999);
-
-  if (period === "daily") {
-    return {
-      dateFrom: Math.floor(startOfToday.getTime() / 1000),
-      dateTo: Math.floor(endOfToday.getTime() / 1000),
-    };
-  }
-  if (period === "weekly") {
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(today.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    return {
-      dateFrom: Math.floor(sevenDaysAgo.getTime() / 1000),
-      dateTo: Math.floor(endOfToday.getTime() / 1000),
-    };
-  }
-  // monthly
-  const thirtyDaysAgo = new Date(today);
-  thirtyDaysAgo.setDate(today.getDate() - 30);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
-  return {
-    dateFrom: Math.floor(thirtyDaysAgo.getTime() / 1000),
-    dateTo: Math.floor(endOfToday.getTime() / 1000),
-  };
-}
+const PERIOD_DAYS: Record<HotColdPeriod, number> = {
+  daily: 1,
+  weekly: 7,
+  monthly: 30,
+};
 
 function transformVendorsResponse(
   res: GetVendorsResponse,
@@ -122,13 +96,60 @@ function filterAndSort(
     : [...filtered].sort((a, b) => (a.rtp ?? 0) - (b.rtp ?? 0));
 }
 
+function sortByRtp(games: HotColdGame[], filter: HotColdFilter): HotColdGame[] {
+  return filter === "hot"
+    ? [...games].sort((a, b) => (b.rtp ?? 0) - (a.rtp ?? 0))
+    : [...games].sort((a, b) => (a.rtp ?? 0) - (b.rtp ?? 0));
+}
+
+function mapGames(rawGames: GetVendorsGame[]): HotColdGame[] {
+  return rawGames.map((game, index) => {
+    const data = game.data ?? game;
+    const id = String(data.id ?? game.id ?? index);
+    const title = data.name ?? game.name ?? `Game ${id}`;
+    const cover =
+      data.desktop_image ??
+      game.desktop_image ??
+      data.game_image ??
+      game.game_image ??
+      data.logo ??
+      game.logo ??
+      data.image ??
+      game.image ??
+      "/placeholder.svg";
+    const rtp = data.rtp ?? game.rtp ?? null;
+    const vendorName =
+      data.game_vendor_name ?? game.game_vendor_name ?? "Unknown";
+
+    return {
+      id,
+      title,
+      cover,
+      accentColor: "#daa520",
+      rtp: rtp != null ? Number(rtp) : null,
+      vendorName,
+    };
+  });
+}
+
+function getGamesForFilter(
+  cached: CachedData,
+  filter: HotColdFilter,
+): HotColdGame[] {
+  return sortByRtp(cached[filter] ?? [], filter);
+}
+
 function readCache(clientId: string, period: HotColdPeriod): CachedData | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(getStorageKey(clientId, period));
     if (!raw) return null;
     const parsed: CachedData = JSON.parse(raw);
-    if (!parsed.data || !Array.isArray(parsed.data) || !parsed.fetchedAt)
+    if (
+      !Array.isArray(parsed.hot) ||
+      !Array.isArray(parsed.cold) ||
+      !parsed.fetchedAt
+    )
       return null;
     if (Date.now() - parsed.fetchedAt > CACHE_TTL_MS) return null;
     return parsed;
@@ -140,7 +161,7 @@ function readCache(clientId: string, period: HotColdPeriod): CachedData | null {
 function writeCache(
   clientId: string,
   period: HotColdPeriod,
-  data: HotColdGame[],
+  data: Pick<CachedData, "hot" | "cold">,
 ): void {
   if (typeof window === "undefined") return;
   try {
@@ -176,24 +197,24 @@ export function useHotCold({
   periodRef.current = period;
 
   const fetchPeriod = useCallback(
-    async (targetPeriod: HotColdPeriod): Promise<HotColdGame[]> => {
-      const { dateFrom, dateTo } = getPeriodDates(targetPeriod);
-      const url = `${process.env.NEXT_PUBLIC_API_HOT_COLD_URL}`;
+    async (
+      targetPeriod: HotColdPeriod,
+    ): Promise<Pick<CachedData, "hot" | "cold">> => {
+      const timeframeDays = PERIOD_DAYS[targetPeriod] ?? 1;
+      const url = `${process.env.NEXT_PUBLIC_API_HOT_COLD_URL}?clientId=${process.env.NEXT_PUBLIC_CLIENT_ID}`;
+      const bearerToken = authToken ?? playerToken;
       const headers: Record<string, string> = {
         Accept: "application/json",
         "Content-Type": "application/json",
       };
-      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
 
       const response = await fetch(url, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          clientId,
-          identifier: "list.main_vendor_cards_rtp",
-          count: 20,
-          dateFrom,
-          dateTo,
+          identifier: "widget.hot_and_cold",
+          timeframeDays,
         }),
       });
 
@@ -203,19 +224,31 @@ export function useHotCold({
       }
 
       const res: GetVendorsResponse = await response.json();
+
+      if (res.hot || res.cold) {
+        const hotGames = mapGames(res.hot ?? []);
+        const coldGames = mapGames(res.cold ?? []);
+        return {
+          hot: sortByRtp(hotGames, "hot"),
+          cold: sortByRtp(coldGames, "cold"),
+        };
+      }
+
       const vendorMap = buildVendorMap(res);
       const list = transformVendorsResponse(res, vendorMap);
-      return list;
+      return {
+        hot: filterAndSort(list, "hot"),
+        cold: filterAndSort(list, "cold"),
+      };
     },
-    [clientId, authToken],
+    [clientId, authToken, playerToken],
   );
 
   const loadPeriod = useCallback(
     async (targetPeriod: HotColdPeriod, fromCacheOnly = false) => {
       const cached = readCache(clientId, targetPeriod);
-      if (cached?.data?.length) {
-        const filtered = filterAndSort(cached.data, filter);
-        setGames(filtered);
+      if (cached) {
+        setGames(getGamesForFilter(cached, filter));
         setError(null);
         if (fromCacheOnly) return;
       }
@@ -223,10 +256,9 @@ export function useHotCold({
       if (fromCacheOnly) return;
 
       try {
-        const list = await fetchPeriod(targetPeriod);
-        writeCache(clientId, targetPeriod, list);
-        const filtered = filterAndSort(list, filter);
-        setGames(filtered);
+        const periodGames = await fetchPeriod(targetPeriod);
+        writeCache(clientId, targetPeriod, periodGames);
+        setGames(sortByRtp(periodGames[filter], filter));
         setError(null);
       } catch (err) {
         console.error("[HotCold] Fetch error:", err);
@@ -244,9 +276,8 @@ export function useHotCold({
     if (!clientId) return;
 
     const cached = readCache(clientId, period);
-    if (cached?.data?.length) {
-      const filtered = filterAndSort(cached.data, filter);
-      setGames(filtered);
+    if (cached) {
+      setGames(getGamesForFilter(cached, filter));
       setError(null);
       setIsLoading(false);
       // Prefetch other periods in background
@@ -256,7 +287,7 @@ export function useHotCold({
       others.forEach((p) => {
         if (!readCache(clientId, p)) {
           fetchPeriod(p)
-            .then((list) => writeCache(clientId, p, list))
+            .then((periodGames) => writeCache(clientId, p, periodGames))
             .catch(() => {});
         }
       });
@@ -268,10 +299,10 @@ export function useHotCold({
     setError(null);
 
     fetchPeriod(period)
-      .then((list) => {
+      .then((periodGames) => {
         if (cancelled) return;
-        writeCache(clientId, period, list);
-        setGames(filterAndSort(list, filter));
+        writeCache(clientId, period, periodGames);
+        setGames(sortByRtp(periodGames[filter], filter));
         setIsLoading(false);
         const others: HotColdPeriod[] = ["daily", "weekly", "monthly"].filter(
           (p) => p !== period,
@@ -300,8 +331,8 @@ export function useHotCold({
   useEffect(() => {
     if (!clientId) return;
     const cached = readCache(clientId, period);
-    if (cached?.data?.length) {
-      setGames(filterAndSort(cached.data, filter));
+    if (cached) {
+      setGames(getGamesForFilter(cached, filter));
     }
   }, [clientId, period, filter]);
 
@@ -309,15 +340,15 @@ export function useHotCold({
     (p: HotColdPeriod) => {
       setPeriodState(p);
       const cached = readCache(clientId, p);
-      if (cached?.data?.length) {
-        setGames(filterAndSort(cached.data, filter));
+      if (cached) {
+        setGames(getGamesForFilter(cached, filter));
       } else {
         setIsLoading(true);
         fetchPeriod(p)
-          .then((list) => {
-            writeCache(clientId, p, list);
+          .then((periodGames) => {
+            writeCache(clientId, p, periodGames);
             if (periodRef.current === p) {
-              setGames(filterAndSort(list, filter));
+              setGames(sortByRtp(periodGames[filter], filter));
             }
             setIsLoading(false);
           })
@@ -335,9 +366,9 @@ export function useHotCold({
       const periods: HotColdPeriod[] = ["daily", "weekly", "monthly"];
       periods.forEach((p) => {
         fetchPeriod(p)
-          .then((list) => {
-            writeCache(clientId, p, list);
-            if (p === period) setGames(filterAndSort(list, filter));
+          .then((periodGames) => {
+            writeCache(clientId, p, periodGames);
+            if (p === period) setGames(sortByRtp(periodGames[filter], filter));
           })
           .catch(() => {});
       });

@@ -107,6 +107,8 @@ export interface GetVendorsGame {
 export interface GetVendorsResponse {
   vendors?: GetVendorsVendor[];
   games?: GetVendorsGame[];
+  hot?: GetVendorsGame[];
+  cold?: GetVendorsGame[];
   data?: { cards?: unknown[] };
   cards?: unknown[];
 }
