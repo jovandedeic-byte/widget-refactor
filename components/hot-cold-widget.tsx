@@ -22,6 +22,39 @@ const PERIODS: { value: HotColdPeriod; label: string }[] = [
   { value: "monthly", label: "30D" },
 ];
 
+function HotColdWidgetTitle({ title }: { title: string }) {
+  return (
+    <h2 className="relative tracking- mt-6 mb-6 px-4 text-2xl font-extrabold uppercase  md:text-6xl leading-none select-none">
+      <span
+        aria-hidden
+        className="absolute inset-0 text-transparent"
+        style={{
+          WebkitTextStroke: "3px #ff9a4a",
+          clipPath: "inset(0 50% 0 0)",
+        }}
+      >
+        {title}
+      </span>
+      <span
+        aria-hidden
+        className="absolute inset-0 text-transparent"
+        style={{
+          WebkitTextStroke: "3px #5cb8ff",
+          clipPath: "inset(0 0 0 50%)",
+        }}
+      >
+        {title}
+      </span>
+      <span
+        className="relative text-transparent"
+        style={{ WebkitTextStroke: "3px transparent" }}
+      >
+        {title}
+      </span>
+    </h2>
+  );
+}
+
 export function HotColdWidget({
   clientId,
   playerToken,
@@ -112,16 +145,10 @@ export function HotColdWidget({
   // Inner content (shared by all background modes)
   const widgetContent = (
     <>
-      <h2 className="text-center text-2xl md:text-3xl font-extrabold uppercase tracking-tight mt-6 mb-6 text-white/95 px-4 bg-transparent">
-        {title}
-      </h2>
-
-      {/* Controls: toggle + period selector */}
-      <div className="flex flex-wrap items-center justify-between gap-4 md:gap-6 mb-6 px-4">
-        <div />
-        {/* Hot / Cold toggle */}
+      <div className="w-full flex flex-col justify-center items-center ">
+        <HotColdWidgetTitle title={title} />
         <div
-          className="relative flex items-center h-11.5 rounded-[23px] cursor-pointer overflow-hidden p-0 active:scale-[0.97] transition-transform"
+          className="relative  flex items-center h-11.5 rounded-[23px] cursor-pointer overflow-hidden p-0 active:scale-[0.97] transition-transform"
           onClick={() => setFilter(isHot ? "cold" : "hot")}
           role="switch"
           aria-checked={isHot}
@@ -221,7 +248,10 @@ export function HotColdWidget({
             </span>
           </div>
         </div>
+      </div>
 
+      {/* Controls: toggle + period selector */}
+      <div className="flex flex-wrap items-center justify-end gap-4 md:gap-6 mb-6 px-4">
         {/* Period selector */}
         <div
           className="flex rounded-[15px] overflow-hidden"

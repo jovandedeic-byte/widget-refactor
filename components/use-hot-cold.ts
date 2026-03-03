@@ -106,14 +106,16 @@ export function useHotCold({
     null,
   );
   const periodRef = useRef<HotColdPeriod>(period);
+  const filterRef = useRef<HotColdFilter>(filter);
   periodRef.current = period;
+  filterRef.current = filter;
 
   const fetchPeriod = useCallback(
     async (
       targetPeriod: HotColdPeriod,
     ): Promise<Pick<CachedData, "hot" | "cold">> => {
       const timeframeDays = PERIOD_DAYS[targetPeriod] ?? 1;
-      const url = `${process.env.NEXT_PUBLIC_API_HOT_COLD_URL}?clientId=${process.env.NEXT_PUBLIC_CLIENT_ID}`;
+      const url = `${process.env.NEXT_PUBLIC_API_HOT_COLD_URL}?clientId=${encodeURIComponent(clientId)}`;
       const bearerToken = authToken ?? playerToken;
       const headers: Record<string, string> = {
         Accept: "application/json",
@@ -271,7 +273,9 @@ export function useHotCold({
         fetchPeriod(p)
           .then((periodGames) => {
             writeCache(clientId, p, periodGames);
-            if (p === period) setGames(periodGames[filter]);
+            if (p === periodRef.current) {
+              setGames(periodGames[filterRef.current]);
+            }
           })
           .catch(() => {});
       });
@@ -283,7 +287,7 @@ export function useHotCold({
         refetchIntervalRef.current = null;
       }
     };
-  }, [clientId, period, filter, fetchPeriod]);
+  }, [clientId, fetchPeriod]);
 
   const trackClick = useCallback((_gameId: string) => {
     // Optional: POST to click endpoint if backend provides one

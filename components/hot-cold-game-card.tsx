@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ElectricBorder from "@/components/ElectricBorder";
 import type { HotColdGame } from "./types";
 import type { HotColdFilter } from "./use-hot-cold";
+import Image from "next/image";
 
 interface HotColdGameCardProps {
   game: HotColdGame;
@@ -21,8 +23,14 @@ export function HotColdGameCard({
   gameUrl,
   onPlay,
 }: HotColdGameCardProps) {
+  const [desktopImageError, setDesktopImageError] = useState(false);
+  const [mobileImageError, setMobileImageError] = useState(false);
   const isHot = filter === "hot";
   const rtpDisplay = game.rtp != null ? `${Number(game.rtp).toFixed(2)}%` : "—";
+  const desktopSrc = desktopImageError ? "/placeholder.svg" : game.desktopImage;
+  const mobileSrc = mobileImageError
+    ? "/placeholder.svg"
+    : game.mobileImage || game.desktopImage;
 
   const resolveUrl = () => {
     if (!gameUrl) return undefined;
@@ -44,23 +52,35 @@ export function HotColdGameCard({
       role="group"
       aria-label={`${game.name} - RTP ${rtpDisplay}`}
     >
-      <ElectricBorder
-        color={electricColor}
-        speed={1.2}
-        chaos={0.1}
-        borderRadius={16}
+      <div
+        className={`border ${isHot ? "border-[#e8843c]" : "border-[#4a9eff]"} rounded-2xl`}
       >
         <div className="relative rounded-2xl overflow-hidden bg-black/60 p-4">
-          {/* TODO: remove hardcoded domain and use gameUrl pattern instead when available */}
-          <img
-            src={`https://admiralbet.me/${game.desktopImage}`}
-            alt={game.name}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "/placeholder.svg";
-            }}
-            className="w-full rounded-xl mb-3 object-cover"
+          <div
+            className="relative w-full rounded-xl mb-3 overflow-hidden"
             style={{ aspectRatio: "16/12" }}
-          />
+          >
+            <Image
+              src={mobileSrc}
+              alt={game.name}
+              fill
+              sizes="(max-width: 639px) 100vw"
+              className="object-cover sm:hidden"
+              onError={() => {
+                setMobileImageError(true);
+              }}
+            />
+            <Image
+              src={desktopSrc}
+              alt={game.name}
+              fill
+              sizes="(min-width: 640px) 100vw"
+              className="hidden object-cover sm:block"
+              onError={() => {
+                setDesktopImageError(true);
+              }}
+            />
+          </div>
           <h3 className="text-sm font-bold text-white truncate mb-1 uppercase tracking-tight">
             {game.name}
           </h3>
@@ -87,7 +107,7 @@ export function HotColdGameCard({
             Play now
           </Button>
         </div>
-      </ElectricBorder>
+      </div>
     </article>
   );
 }
