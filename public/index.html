@@ -384,6 +384,7 @@
         display: flex;
         justify-content: center;
         align-items: flex-end;
+        flex-wrap: wrap;
         gap: clamp(8px, 3vw, 28px);
         padding: 60px 24px 40px;
         position: relative;
@@ -407,6 +408,9 @@
         }
       }
       .flower svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
         animation: sway 4s ease-in-out infinite alternate;
       }
       @keyframes sway {
@@ -679,6 +683,59 @@
 
         .vol-slider {
           width: 44px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .hero,
+        .section,
+        .footer-wish {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+
+        .date-label {
+          letter-spacing: 0.22em;
+        }
+
+        .scroll-hint span {
+          letter-spacing: 0.2em;
+        }
+
+        .quotes-grid {
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
+        .quote-card {
+          padding: 28px 20px;
+        }
+
+        .ribbon {
+          padding: 14px 12px;
+          letter-spacing: 0.16em;
+        }
+
+        .flowers-row {
+          padding: 44px 12px 28px;
+          gap: 10px;
+        }
+
+        .flower {
+          flex: 0 1 72px;
+        }
+      }
+
+      @media (max-width: 420px) {
+        .quotes-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-title {
+          font-size: clamp(44px, 16vw, 64px);
+        }
+
+        .hero-divider {
+          width: min(70vw, 220px);
         }
       }
 
