@@ -31,6 +31,8 @@ export function HotColdGameCard({
   const mobileSrc = mobileImageError
     ? "/placeholder.svg"
     : game.mobileImage || game.desktopImage;
+  const isRemoteDesktop = /^https?:\/\//i.test(desktopSrc);
+  const isRemoteMobile = /^https?:\/\//i.test(mobileSrc);
 
   const resolveUrl = () => {
     if (!gameUrl) return undefined;
@@ -75,6 +77,7 @@ export function HotColdGameCard({
               alt={game.name}
               fill
               sizes="(min-width: 640px) 100vw"
+              unoptimized={isRemoteDesktop}
               className="hidden object-cover sm:block"
               onError={() => {
                 setDesktopImageError(true);
